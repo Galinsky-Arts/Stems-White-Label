@@ -1,3 +1,4 @@
+import { startWorkerObservation } from "../src/lib/operations";
 import { hostname } from "node:os";
 
 import { processAudioAsset } from "../src/lib/audio-processor";
@@ -17,6 +18,7 @@ const staleMinutes = Math.max(
   Number(process.env.ASSET_WORKER_STALE_MINUTES) || 20,
 );
 
+const observation = startWorkerObservation("ASSET");
 let stopping = false;
 
 function sleep(milliseconds: number) {
@@ -46,9 +48,11 @@ async function main() {
       continue;
     }
 
+    const started = await observation.begin();
     try {
       await processAudioAsset(job.audioAssetId);
       await markProcessingJobSucceeded(job.id);
+      await observation.complete(started, true);
       console.log("Asset job completed", { jobId: job.id, outcome: "succeeded" });
     } catch (error) {
       const result = await markProcessingJobFailed({
@@ -60,6 +64,7 @@ async function main() {
         error,
       });
 
+      await observation.complete(started, false);
       console.error("Asset job failed", {
         jobId: job.id,
         outcome: result.exhausted ? "exhausted" : "retry_scheduled",
@@ -71,9 +76,10 @@ async function main() {
 
 main()
   .catch((error) => {
-    console.error("Asset worker terminated", { category: "worker-fatal", errorType: error instanceof Error ? error.name : "unknown" });
+    console.error("Asset worker terminated", { category: "worker-fatal", outcome: "failed" });
     process.exitCode = 1;
   })
   .finally(async () => {
+    await observation.stop();
     await db.$disconnect();
   });

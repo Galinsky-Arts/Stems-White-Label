@@ -27,6 +27,7 @@ export async function getPlatformAccess() {
     select: {
       id: true,
       email: true,
+      emailVerified: true,
       name: true,
       platformRole: true,
     },
@@ -35,7 +36,7 @@ export async function getPlatformAccess() {
 
   const allowed =
     user.platformRole === "SUPER_ADMIN" ||
-    platformEmailIsBootstrapAdmin(user.email);
+    (Boolean(user.emailVerified) && platformEmailIsBootstrapAdmin(user.email));
 
   return allowed ? { session, user } : null;
 }
