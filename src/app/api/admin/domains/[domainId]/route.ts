@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -33,7 +34,7 @@ export async function POST(request: Request, { params }: RouteProps) {
     return NextResponse.json({ domain });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to update domain." },
+      { error: publicOperationError(error, "Unable to update domain.") },
       { status: 400 },
     );
   }
@@ -50,7 +51,7 @@ export async function DELETE(_request: Request, { params }: RouteProps) {
     return new Response(null, { status: 204 });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to delete domain." },
+      { error: publicOperationError(error, "Unable to delete domain.") },
       { status: 400 },
     );
   }

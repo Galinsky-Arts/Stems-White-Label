@@ -42,7 +42,7 @@ export async function POST(_request: Request, { params }: RouteProps) {
 
     return NextResponse.json({ artwork: updated });
   } catch (error) {
-    console.error("Unable to verify artwork", error);
+    console.error("Unable to verify artwork");
     return NextResponse.json(
       { error: "Uploaded artwork could not be verified." },
       { status: 409 },

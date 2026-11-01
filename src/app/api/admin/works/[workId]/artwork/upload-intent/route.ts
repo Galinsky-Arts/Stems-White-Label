@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
@@ -89,7 +90,7 @@ export async function POST(request: Request, { params }: RouteProps) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to upload artwork." },
+      { error: publicOperationError(error, "Unable to upload artwork.") },
       { status: 400 },
     );
   }

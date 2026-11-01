@@ -77,7 +77,7 @@ export async function POST(_request: Request, { params }: CompleteRouteProps) {
   try {
     stored = await headPrivateObject(asset.storageKey);
   } catch (error) {
-    console.error("Unable to verify uploaded source object", error);
+    console.error("Unable to verify uploaded source object");
     return NextResponse.json(
       { error: "Uploaded object could not be verified." },
       { status: 409 },

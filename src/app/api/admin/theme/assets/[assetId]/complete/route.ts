@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -64,7 +65,7 @@ export async function POST(_request: Request, { params }: RouteProps) {
     }).catch(() => undefined);
 
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to verify brand asset." },
+      { error: publicOperationError(error, "Unable to verify brand asset.") },
       { status: 400 },
     );
   }

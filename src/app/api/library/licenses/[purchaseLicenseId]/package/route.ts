@@ -1,3 +1,5 @@
+import { publicStoredError } from "@/lib/public-operation-error";
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getCustomerApiAccess } from "@/lib/customer-access";
@@ -32,7 +34,7 @@ export async function GET(_request: Request, { params }: RouteProps) {
 
   return NextResponse.json({
     package: record
-      ? { ...record, sizeBytes: record.sizeBytes?.toString() ?? null }
+      ? { ...record, lastError: publicStoredError(record.lastError), sizeBytes: record.sizeBytes?.toString() ?? null }
       : null,
   });
 }
@@ -53,13 +55,18 @@ export async function POST(_request: Request, { params }: RouteProps) {
     });
     return NextResponse.json({
       package: {
-        ...record,
+        id: record.id,
+        status: record.status,
+        fileName: record.fileName,
+        checksumSha256: record.checksumSha256,
+        completedAt: record.completedAt,
+        lastError: publicStoredError(record.lastError),
         sizeBytes: record.sizeBytes?.toString() ?? null,
       },
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to request package." },
+      { error: publicOperationError(error, "Unable to request package.") },
       { status: 400 },
     );
   }

@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -64,7 +65,7 @@ export async function POST(request: Request, { params }: UploadIntentRouteProps)
     return NextResponse.json(
       {
         error:
-          error instanceof Error ? error.message : "Invalid source upload.",
+          publicOperationError(error, "Invalid source upload."),
       },
       { status: 400 },
     );
@@ -74,7 +75,7 @@ export async function POST(request: Request, { params }: UploadIntentRouteProps)
     await assertTenantStorageCapacity(access.tenant.id, upload.sizeBytes);
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Storage limit reached." },
+      { error: publicOperationError(error, "Storage limit reached.") },
       { status: 403 },
     );
   }
@@ -150,7 +151,7 @@ export async function POST(request: Request, { params }: UploadIntentRouteProps)
     );
   } catch (error) {
     await db.audioAsset.delete({ where: { id: asset.id } }).catch(() => undefined);
-    console.error("Unable to create source upload URL", error);
+    console.error("Unable to create source upload URL");
 
     return NextResponse.json(
       { error: "Object storage is not configured or unavailable." },

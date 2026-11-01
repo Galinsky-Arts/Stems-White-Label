@@ -166,3 +166,8 @@ const safeMessages = new Set<string>([
 export function publicOperationError(error: unknown, fallback: string) {
   return error instanceof Error && safeMessages.has(error.message) ? error.message : fallback;
 }
+
+/** Stored worker diagnostics may contain provider details from earlier attempts. */
+export function publicStoredError(value: unknown): string | null {
+  return value == null || value === "" ? null : "Processing failed. Please retry or contact support.";
+}

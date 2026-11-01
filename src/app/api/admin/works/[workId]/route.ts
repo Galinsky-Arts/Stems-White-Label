@@ -1,4 +1,4 @@
-import { publicOperationError } from "@/lib/public-operation-error";
+import { publicOperationError, publicStoredError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -128,7 +128,25 @@ export async function GET(_request: Request, { params }: WorkRouteProps) {
     return NextResponse.json({ error: "Work not found." }, { status: 404 });
   }
 
-  return NextResponse.json({ work, artists, collections });
+  const sanitizeAsset = <T extends { processingJobs: { lastError: string | null }[] }>(asset: T) => ({
+    ...asset,
+    processingJobs: asset.processingJobs.map((job) => ({
+      ...job,
+      lastError: publicStoredError(job.lastError),
+    })),
+  });
+  return NextResponse.json({
+    work: {
+      ...work,
+      audioAssets: work.audioAssets.map(sanitizeAsset),
+      stemGroups: work.stemGroups.map((group) => ({
+        ...group,
+        audioAssets: group.audioAssets.map(sanitizeAsset),
+      })),
+    },
+    artists,
+    collections,
+  });
 }
 
 export async function PATCH(request: Request, { params }: WorkRouteProps) {
