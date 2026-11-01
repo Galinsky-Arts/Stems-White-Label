@@ -79,7 +79,7 @@ async function queueMetric(kind: WorkerKind, now: Date): Promise<QueueMetric> {
 export async function getOperationsSnapshot(now = new Date()) {
   const [asset, packages, workers, deployments, incidents] = await Promise.all([
     queueMetric("ASSET", now), queueMetric("PACKAGE", now),
-    db.workerObservation.findMany({ where: { lastSeenAt: { gte: new Date(now.getTime() - 86400_000) } }, select: { kind: true, state: true, lastSeenAt: true, releaseSha: true, completed: true, failed: true, lastDurationMs: true }, orderBy: { lastSeenAt: "desc" }, take: 100 }),
+    db.workerObservation.findMany({ where: { lastSeenAt: { gte: new Date(now.getTime() - 86400_000) } }, select: { id: true, kind: true, state: true, lastSeenAt: true, releaseSha: true, completed: true, failed: true, lastDurationMs: true }, orderBy: { lastSeenAt: "desc" }, take: 100 }),
     db.deploymentObservation.findMany({ orderBy: { observedAt: "desc" }, take: 10, select: { releaseSha: true, source: true, observedAt: true, lastSeenAt: true } }),
     db.platformAuditLog.findMany({ where: { targetType: "OPERATION_ALERT" }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, targetId: true, action: true, createdAt: true } }),
   ]);

@@ -1,3 +1,4 @@
+import { readOperationBody } from "@/lib/operation-request";
 import { NextResponse } from "next/server";
 import { getPlatformAccess } from "@/lib/platform-access";
 import { recordOperationIncident } from "@/lib/operations";
@@ -7,8 +8,8 @@ export async function POST(request: Request) {
   if (!access) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   if (request.headers.get("origin") !== new URL(request.url).origin)
     return NextResponse.json({ error: "Forbidden origin." }, { status: 403 });
-  const body = await request.json().catch(() => null);
   try {
+    const body = await readOperationBody(request);
     const incident = await recordOperationIncident(access.user.id, body?.alertKey, body?.action);
     return NextResponse.json({ incident }, { headers: { "Cache-Control": "no-store" } });
   } catch {

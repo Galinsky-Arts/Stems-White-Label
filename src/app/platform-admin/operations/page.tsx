@@ -27,6 +27,14 @@ export default async function OperationsPage() {
     </tr></thead><tbody>{Object.entries(snapshot.queues).map(([kind, queue]) => <tr key={kind}>
       <th scope="row">{kind}</th><td>{queue.ready}</td><td>{queue.processing}</td><td>{queue.failed24h}</td><td>{queue.averageDurationMs === null ? "No completed observations" : Math.round(queue.averageDurationMs) + " ms"}</td>
     </tr>)}</tbody></table></section>
+    <section className="cms-panel"><h2>Worker observations</h2>
+      <table><caption>Recent worker heartbeats and execution outcomes</caption>
+        <thead><tr><th scope="col">Worker</th><th scope="col">State</th><th scope="col">Last heartbeat</th><th scope="col">Completed</th><th scope="col">Failed attempts</th></tr></thead>
+        <tbody>{snapshot.workers.map((worker) => <tr key={worker.id}>
+          <th scope="row">{worker.kind}</th><td>{worker.state}</td><td><time dateTime={worker.lastSeenAt.toISOString()}>{worker.lastSeenAt.toISOString()}</time></td><td>{worker.completed}</td><td>{worker.failed}</td>
+        </tr>)}</tbody>
+      </table>
+    </section>
     <section className="cms-panel"><h2>Release and source</h2><p>Running commit: {snapshot.releaseSha ?? "Unknown"}</p>
       <p>Expected commit: {snapshot.expectedSha ?? "Not configured"}</p><p>Roadmap observed: {snapshot.source.observedAt ?? "Unknown"}</p>
       <ul>{snapshot.deployments.map((deployment) => <li key={deployment.releaseSha}>{deployment.releaseSha} observed {deployment.observedAt.toISOString()} from {deployment.source}</li>)}</ul>
