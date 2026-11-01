@@ -36,6 +36,13 @@ export async function validateSecurityHttp(suffix: string) {
     const works = await Promise.all(tenants.map((tenant, i) => db.work.create({ data: { tenantId: tenant.id, slug: "http-work-" + i, title: "Private tenant " + i, status: "PUBLISHED", publishedAt: new Date() } })));
     const preview = await db.audioAsset.create({ data: { tenantId: tenants[1]!.id, workId: works[1]!.id, kind: "PREVIEW", status: "READY", fileName: "fixture.mp3", storageKey: "http-security/fixture.mp3" } });
     const original = await db.audioAsset.create({ data: { tenantId: tenants[0]!.id, workId: works[0]!.id, kind: "MASTER", status: "READY", fileName: "private-original.wav", storageKey: "http-security/private-original.wav" } });
+    const historicalDiagnostic = "postgresql://worker:private-password@internal-db/private?customer=private@example.com";
+    await db.processingJob.create({ data: {
+      tenantId: tenants[0]!.id,
+      audioAssetId: original.id,
+      status: "FAILED",
+      lastError: historicalDiagnostic,
+    } });
     const secret = "offline-http-preview-secret-" + suffix;
     const origin = "http://127.0.0.1:" + port;
     const hosts = ["security-a-" + suffix + ".example", "security-b-" + suffix + ".example"];
@@ -83,6 +90,15 @@ export async function validateSecurityHttp(suffix: string) {
     assert.equal(own.status, 200);
     const ownData = await own.json();
     assert.deepEqual(ownData.works.map((work: { id: string }) => work.id), [works[0]!.id]);
+    const detail = await request("/api/admin/works/" + works[0]!.id);
+    assert.equal(detail.status, 200);
+    const detailBody = await detail.text();
+    assert.equal(detailBody.includes(historicalDiagnostic), false);
+    assert.equal(detailBody.includes("private-password"), false);
+    const detailData = JSON.parse(detailBody);
+    assert.equal(detailData.work.audioAssets[0].processingJobs[0].lastError,
+      "Processing failed. Please retry or contact support.");
+    assert.equal(detailData.work.audioAssets[0].processingJobs[0].status, "FAILED");
     assert.equal((await request("/api/admin/works", 1)).status, 401);
     assert.equal((await request("/api/admin/works", 0, null)).status, 401);
     assert.equal((await request("/api/admin/works", 0, 2)).status, 401);
