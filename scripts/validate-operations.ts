@@ -1,3 +1,7 @@
+import { spawn } from "node:child_process";
+import { createServer } from "node:net";
+import { once } from "node:events";
+import { randomBytes } from "node:crypto";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { getOperationsSnapshot, observeDeployment, recordOperationIncident, startWorkerObservation } from "../src/lib/operations";
@@ -47,6 +51,7 @@ export async function validateOperations() {
     await assert.rejects(db.platformAuditLog.update({ where: { id: acknowledged.id }, data: { action: "TAMPERED" } }));
     await db.processingJob.update({ where: { audioAssetId_type: { audioAssetId: asset.id, type: "PROCESS_AUDIO" } }, data: { status: "FAILED", attempts: 3, completedAt: new Date() } });
     assert.ok((await getOperationsSnapshot()).queues.ASSET.failed24h >= 1);
+    await validateOperationsHttp(admin.id, user.id, token);
     console.log("Operations database/authenticated-monitor/incident integration passed.");
   } finally {
     await observer.stop();
@@ -58,5 +63,65 @@ export async function validateOperations() {
     for (const key of Object.keys(previous) as (keyof typeof previous)[]) {
       if (previous[key] === undefined) delete process.env[key]; else process.env[key] = previous[key];
     }
+  }
+}
+
+async function validateOperationsHttp(adminId: string, viewerId: string, monitorToken: string) {
+  const portProbe = createServer();
+  await new Promise<void>((resolve, reject) => { portProbe.once("error", reject); portProbe.listen(0, "127.0.0.1", resolve); });
+  const address = portProbe.address();
+  assert.ok(address && typeof address !== "string");
+  const port = address.port;
+  await new Promise<void>((resolve) => portProbe.close(() => resolve()));
+  const origin = "http://127.0.0.1:" + port;
+  const tokens = [randomBytes(32).toString("hex"), randomBytes(32).toString("hex"), randomBytes(32).toString("hex")];
+  await db.session.createMany({ data: tokens.map((sessionToken, index) => ({
+    sessionToken, userId: index === 1 ? viewerId : adminId,
+    expires: new Date(Date.now() + (index === 2 ? -60000 : 3600000)),
+  })) });
+  const app = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
+    env: { ...process.env, NODE_ENV: "development", NEXTAUTH_URL: origin, NEXTAUTH_SECRET: "synthetic-operations-http-secret", NEXT_TELEMETRY_DISABLED: "1" },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  // Consume bounded synthetic fixture output; do not emit raw server diagnostics.
+  app.stdout?.resume(); app.stderr?.resume();
+  try {
+    const started = Date.now();
+    while (true) {
+      if (app.exitCode !== null) throw new Error("Operations HTTP fixture exited.");
+      try { if ((await fetch(origin + "/api/health", { signal: AbortSignal.timeout(1000) })).ok) break; } catch {}
+      if (Date.now() - started > 30000) throw new Error("Operations HTTP fixture startup timeout.");
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    async function request(path: string, principal: number | null, options: { bearer?: string; method?: string; origin?: string; body?: string } = {}) {
+      return fetch(origin + path, { method: options.method ?? "GET", redirect: "manual", signal: AbortSignal.timeout(30000),
+        headers: { ...(principal === null ? {} : { cookie: "next-auth.session-token=" + tokens[principal] }),
+          ...(options.bearer ? { authorization: "Bearer " + options.bearer } : {}),
+          ...(options.origin ? { origin: options.origin } : {}), "content-type": "application/json" },
+        body: options.body,
+      });
+    }
+    assert.equal((await request("/api/operations", null)).status, 401);
+    assert.equal((await request("/api/operations", null, { bearer: "invalid" })).status, 401);
+    assert.equal((await request("/api/operations", 1)).status, 401);
+    assert.equal((await request("/api/operations", 2)).status, 401);
+    assert.equal((await request("/api/operations", 0)).status, 503);
+    assert.equal((await request("/api/operations", null, { bearer: monitorToken })).status, 503);
+    const body = JSON.stringify({ alertKey: "ASSET_QUEUE_DELAY", action: "ACKNOWLEDGE" });
+    const endpoint = "/api/platform-admin/operations";
+    assert.equal((await request(endpoint, null, { bearer: monitorToken, method: "POST", origin, body })).status, 401);
+    assert.equal((await request(endpoint, 1, { method: "POST", origin, body })).status, 401);
+    assert.equal((await request(endpoint, 0, { method: "POST", origin: "https://attacker.example", body })).status, 403);
+    assert.equal((await request(endpoint, 0, { method: "POST", body })).status, 403);
+    assert.equal((await request(endpoint, 0, { method: "POST", origin, body })).status, 200);
+    await db.session.deleteMany({ where: { sessionToken: tokens[0] } });
+    assert.equal((await request("/api/operations", 0)).status, 401);
+  } finally {
+    if (app.exitCode === null) {
+      app.kill("SIGTERM");
+      const timer = setTimeout(() => app.kill("SIGKILL"), 5000);
+      await once(app, "exit"); clearTimeout(timer);
+    }
+    await db.session.deleteMany({ where: { sessionToken: { in: tokens } } });
   }
 }
