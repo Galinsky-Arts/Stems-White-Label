@@ -25,6 +25,11 @@ monitoring. Point the authorized existing monitor at that status and route alert
 through its approved notification channel. No paid monitor or new schedule is
 provisioned by this change. Verify actual notification delivery during cutover.
 
+The existing live-smoke runner can include authenticated operations by receiving
+STEMS_OPERATIONS_MONITOR_TOKEN from the monitor's private secret settings.
+It refuses redirects, stale JSON and any active alerts, including an inaccurate
+HTTP 200 proxy response. This source change does not edit any recurring schedule.
+
 The public /api/health and /api/ready remain process and database probes; they do
 not expose global tenant queue state or imply workers are healthy.
 
