@@ -30,8 +30,6 @@ The HTTP fixture uses `node:http` to preserve virtual Host headers: native fetch
 
 Local execution can use `node --import tsx --test src/**/*.test.ts` where the tsx CLI's Unix IPC endpoint is unavailable. CI runs the ordinary npm command. A passing local test is not evidence of a production provider configuration, customer purchase, private object-store origin, TLS cutover or backup restore; those remain environment-specific acceptance under the corresponding approved units.
 
-## Outstanding gateway restriction
+## Dynamic route redaction
 
-The fenced write gateway returned `INPUT_REJECTED` / `INVALID_ARGUMENT`, message `Invalid repository file path`, for the existing path `src/app/api/admin/works/[workId]/route.ts`. A batch containing bracketed Next.js route paths was rejected, while ordinary source paths were accepted. No alternate connector, endpoint, encoding, or renamed route was used.
-
-Pending diagnostic/log redaction edits in dynamic routes remain uncommitted. They cover collection/work/license/domain mutations, upload/verification routes, protected package requests, and public artwork/audio delivery logs. Keep PR #36 draft until that restriction is resolved and the remaining source changes and tests are verified. The other implemented controls and their tests can be reviewed independently in the same PR. Do not interpret green CI as completion of the rejected edits.
+The earlier connector restriction on bracketed Next.js file paths has been resolved in the source branch. Dynamic route redaction and authenticated HTTP assertions are included; their acceptance is established by the final consolidated branch checks.

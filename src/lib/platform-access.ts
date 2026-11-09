@@ -30,7 +30,6 @@ export async function getPlatformAccess() {
       emailVerified: true,
       name: true,
       platformRole: true,
-      emailVerified: true,
     },
   });
   if (!user) return null;

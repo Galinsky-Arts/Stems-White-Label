@@ -5,7 +5,7 @@ export type WorkerKind = typeof workerKinds[number];
 export type QueueMetric = { ready: number; processing: number; failed24h: number; completed24h: number; oldestReadyAt: Date | null; stale: number; averageDurationMs: number | null };
 export type Alert = { key: string; severity: "critical" | "warning"; message: string };
 
-export function releaseIdentity(env: NodeJS.ProcessEnv = process.env) {
+export function releaseIdentity(env: Record<string, string | undefined> = process.env) {
   const sha = env.RENDER_GIT_COMMIT ?? env.GIT_SHA;
   return sha && /^[a-f0-9]{40}$/i.test(sha) ? sha.toLowerCase() : null;
 }

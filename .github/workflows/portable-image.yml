@@ -36,8 +36,9 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ghcr.io/neophilism/stems-white-label:sha-${{ github.sha }}
+          build-args: GIT_SHA=${{ github.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/stems-white-label:sha-${{ github.sha }}
           labels: |
-            org.opencontainers.image.source=https://github.com/neophilism/Stems-White-Label
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
       - run: echo 'Image build alone is not a live media service or a tested database/auth deployment.' >> "$GITHUB_STEP_SUMMARY"

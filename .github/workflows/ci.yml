@@ -22,6 +22,10 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      s3:
+        image: motoserver/moto@sha256:4ec079cbae737fa957efb6b17732bc4e9cdf33942e947ad70e5696694fca3e5e
+        ports:
+          - 9000:5000
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/stems_white_label?schema=public
       NEXTAUTH_URL: http://localhost:3000
@@ -35,7 +39,7 @@ jobs:
         with:
           node-version: 22
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg unzip
-      - run: npm install
+      - run: npm ci
       - run: npm run db:deploy
       - run: npm test
       - run: node --test scripts/live-smoke.test.mjs
@@ -57,3 +61,16 @@ jobs:
       - run: npm run test:media-integration
       - run: npm run typecheck
       - run: npm run build
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Verify browser, private media, workers and licensed download flow
+        run: npm run test:browser-integration
+        env:
+          OBJECT_STORAGE_ENDPOINT: http://127.0.0.1:9000
+          OBJECT_STORAGE_ACCESS_KEY_ID: synthetic-ci-key
+          OBJECT_STORAGE_SECRET_ACCESS_KEY: synthetic-ci-secret
+          OBJECT_STORAGE_FORCE_PATH_STYLE: "true"
+      - name: Production dependency audit
+        run: npm audit --omit=dev
+      - name: Validate repository identity and roadmap
+        run: node scripts/validate-pr-registry.mjs
