@@ -296,7 +296,10 @@
       "sourceSection": "docs/DEVELOPMENT_PLAN.md",
       "dependsOn": [],
       "externalDependencies": [],
-      "externalPrerequisites": []
+      "externalPrerequisites": [],
+      "contributingPrs": [
+        43
+      ]
     },
     {
       "id": "SWL-25",
@@ -306,7 +309,10 @@
       "sourceSection": "docs/DEVELOPMENT_PLAN.md",
       "dependsOn": [],
       "externalDependencies": [],
-      "externalPrerequisites": []
+      "externalPrerequisites": [],
+      "contributingPrs": [
+        43
+      ]
     },
     {
       "id": "SWL-26",
@@ -316,7 +322,10 @@
       "sourceSection": "docs/DEVELOPMENT_PLAN.md",
       "dependsOn": [],
       "externalDependencies": [],
-      "externalPrerequisites": []
+      "externalPrerequisites": [],
+      "contributingPrs": [
+        43
+      ]
     },
     {
       "id": "SWL-27",
@@ -336,7 +345,10 @@
       "sourceSection": "docs/DEVELOPMENT_PLAN.md",
       "dependsOn": [],
       "externalDependencies": [],
-      "externalPrerequisites": []
+      "externalPrerequisites": [],
+      "contributingPrs": [
+        43
+      ]
     },
     {
       "id": "SWL-29",
@@ -346,7 +358,10 @@
       "sourceSection": "docs/DEVELOPMENT_PLAN.md",
       "dependsOn": [],
       "externalDependencies": [],
-      "externalPrerequisites": []
+      "externalPrerequisites": [],
+      "contributingPrs": [
+        43
+      ]
     },
     {
       "id": "SWL-30",

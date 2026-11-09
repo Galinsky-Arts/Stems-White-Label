@@ -61,3 +61,12 @@ resolve the incident and verify rollback/restore evidence separately.
 Worker observations older than 24 hours are excluded from the monitor; raw
 observations remain in PostgreSQL for operational retention managed by the owner.
 No customer email, asset IDs, storage keys or error text is emitted by this API.
+
+## Free integrated deployment
+
+On the current zero-cost host, both consumers run under the web process with
+STEMS_INTEGRATED_WORKERS=true. They pause when the free instance sleeps. On wake,
+new supervised consumers resume durable queues. Active job locks have 15-second
+heartbeats, and stale recovery runs every minute rather than only at startup.
+The monitor still requires both worker kinds and checks actual persisted activity.
+No paid workers or new external alert subscriptions have been enabled.

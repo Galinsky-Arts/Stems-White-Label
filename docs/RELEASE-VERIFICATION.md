@@ -7,9 +7,9 @@ This release consolidates security work from #36, worker/deployment monitoring f
 ## Verified locally
 
 - All 17 migrations applied to isolated PostgreSQL 17.
-- 136 unit tests, all 16 integration suites, TypeScript, and production build passed.
+- 138 unit tests, all 16 integration suites, TypeScript, and production build passed.
 - Signed offline Stripe payment/Connect/billing fixtures cover duplicate and concurrent delivery, rollback, failed and out-of-order events, immutable amounts/buyers, refunds and revoked licenses.
-- Built-server browser acceptance uses two tenants, synthetic audio, a local S3 emulator and real asset/package worker processes. It verifies desktop/mobile WCAG A/AA checks, playback/mute/keyboard seek/resume, public preview range requests, signed fixture payment fulfillment/replay, authenticated original-file checksum, actual ZIP/license construction, and refund revocation of file/package access.
+- Built-server browser acceptance uses two tenants, synthetic audio, a local S3 emulator and real supervised asset/package worker processes inside the web instance. It verifies desktop/mobile WCAG A/AA checks, playback/mute/keyboard seek/resume, public preview range requests, signed fixture payment fulfillment/replay, authenticated original-file checksum, actual ZIP/license construction, and refund revocation of file/package access.
 - Production dependency audit reports zero vulnerabilities after updating Nodemailer and transitive deepmerge/minimatch. The lockfile and npm ci make the checked dependency tree repeatable.
 - Portable Node 22 container builds and includes FFmpeg, ffprobe, Prisma and the TypeScript worker runner. It runs as an unprivileged user, forwards termination through dumb-init, respects PORT and does not migrate on restart.
 
@@ -26,3 +26,17 @@ The test refuses remote database/storage hosts. It creates and removes only its 
 Target organizations are Render tea-dbp1vrrl550s73c3dgrg and Neon org-red-surf-69664431. These were empty when authorized access was restored. A free Neon project and private bucket have been created; deployment evidence is recorded separately once verified.
 
 Still required before selling real music: actual authorized flagship masters/stems and legal offerings; working OAuth and customer SMTP; Stripe platform keys plus separate Checkout/Connect/Billing webhook secrets, seller onboarding and test-mode purchase/refund acceptance; deployed durable workers, external alert receipt and a production backup/restore exercise. No paid resources or real card charges are authorized by this record. Independent human security review remains deferred follow-up under AGENTS.md.
+
+## Free deployment decision
+
+The owner declined paid worker subscriptions. The unused paid Blueprint source
+was removed; its planning attempt created no resources. The free native Node
+service now supports integrated supervised workers using static FFmpeg/ffprobe
+fallbacks. Browser acceptance runs through this exact integrated topology.
+Job leases renew during processing and stale recovery repeats after startup,
+so interrupted jobs can be recovered even when the host wakes before lease expiry.
+Standalone consumer commands remain available for another zero-cost host.
+
+The public repository cannot import the monitoring project's private cross-account
+workflow. Its current zero-budget inventory-only policy is validated locally;
+this does not enable a monitor, notification channel or failover.

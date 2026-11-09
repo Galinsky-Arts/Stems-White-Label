@@ -1,4 +1,5 @@
 import { startWorkerObservation } from "../src/lib/operations";
+import { maintainWorkerLease } from "../src/lib/worker-lease";
 import { hostname } from "node:os";
 
 import { db } from "../src/lib/db";
@@ -35,12 +36,13 @@ process.on("SIGINT", () => {
 });
 
 async function main() {
-  const recovered = await recoverStaleDownloadPackages(staleMinutes);
-  if (recovered.requeued || recovered.failed) {
-    console.log("Recovered stale package jobs", recovered);
-  }
-
+  let recoverAt = 0;
   while (!stopping) {
+    if (Date.now() >= recoverAt) {
+      const recovered = await recoverStaleDownloadPackages(staleMinutes);
+      if (recovered.requeued || recovered.failed) console.log("Recovered stale package jobs", recovered);
+      recoverAt = Date.now() + 60000;
+    }
     const packageId = await claimNextDownloadPackage(workerId);
     if (!packageId) {
       await sleep(pollMs);
@@ -54,6 +56,10 @@ async function main() {
     if (!record) continue;
 
     const started = await observation.begin();
+    const stopLease = maintainWorkerLease(() => db.downloadPackage.updateMany({
+      where: { id: packageId, status: "PROCESSING", lockedBy: workerId },
+      data: { lockedAt: new Date() },
+    }));
     try {
       await buildDownloadPackage(packageId);
       await observation.complete(started, true);
@@ -67,6 +73,8 @@ async function main() {
       });
       await observation.complete(started, false);
       console.error("Download package failed", { outcome: result.exhausted ? "exhausted" : "retry_scheduled", nextAttemptAt: result.retryAt?.toISOString() ?? null });
+    } finally {
+      await stopLease();
     }
   }
 }

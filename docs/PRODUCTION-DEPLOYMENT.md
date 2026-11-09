@@ -3,7 +3,29 @@
 This is a deployment **runbook**, not evidence of an active production deployment.
 Never commit live credentials or allow demo catalog material to become production data.
 
-## Components
+## Current free Galinsky Arts deployment
+
+The owner requires a zero-cost deployment. The Render Free web service runs the
+web application plus supervised asset/package consumers when
+`STEMS_INTEGRATED_WORKERS=true`. Static FFmpeg/ffprobe packages supply media tools
+on the native Node runtime. Private media stays in the Neon bucket; jobs and
+worker observations stay in Postgres. Worker crashes restart with bounded backoff,
+active leases renew, and stale jobs are recovered periodically after a restart.
+No paid worker resources are required or activated.
+
+A free Render instance sleeps after inactivity, which also pauses processing.
+New traffic wakes the web service and consumers. Catalog/package polling keeps an
+active browser flow running; this is not independent always-on worker capacity.
+For this deployment set both worker poll intervals to 5000 ms and stale-lock
+thresholds to two minutes. Active lease renewal prevents valid long jobs expiring.
+The free quotas for web/DB/storage still apply. Upgrading is an owner decision.
+
+The target web service is `stems-galinsky-arts`, in Render workspace
+`tea-dbp1vrrl550s73c3dgrg`. The Neon project is `snowy-glitter-47676908` in
+`org-red-surf-69664431`, with production branch `br-icy-union-bbsc8w83` and private
+bucket `stems-private`. Never copy credentials into source or this document.
+
+## Components for larger deployments
 
 Deploy **three processes from the same commit** with Node.js 22, a private
 PostgreSQL instance, and an S3-compatible **private** object bucket:

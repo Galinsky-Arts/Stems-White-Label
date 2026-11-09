@@ -76,13 +76,12 @@ async function main() {
     }
     const start = (script: string[]) => {
       const child = spawn(process.execPath, script, {
-        env: { ...process.env, NEXTAUTH_URL: origin, NEXTAUTH_SECRET: "synthetic-browser-session-" + suffix, STRIPE_SECRET_KEY: "sk_test_offline_browser", STRIPE_WEBHOOK_SECRET: secret, ASSET_WORKER_POLL_MS: "250", PACKAGE_WORKER_POLL_MS: "250", NEXT_TELEMETRY_DISABLED: "1", NODE_ENV: "production" },
+        env: { ...process.env, STEMS_INTEGRATED_WORKERS: "true", NEXTAUTH_URL: origin, NEXTAUTH_SECRET: "synthetic-browser-session-" + suffix, STRIPE_SECRET_KEY: "sk_test_offline_browser", STRIPE_WEBHOOK_SECRET: secret, ASSET_WORKER_POLL_MS: "250", PACKAGE_WORKER_POLL_MS: "250", NEXT_TELEMETRY_DISABLED: "1", NODE_ENV: "production" },
         stdio: ["ignore", "pipe", "pipe"],
       });
       child.stdout?.resume(); child.stderr?.resume(); children.push(child); return child;
     };
-    start(["--import", "tsx", "scripts/asset-worker.ts"]);
-    start(["--import", "tsx", "scripts/download-package-worker.ts"]);
+    start(["node_modules/next/dist/bin/next", "start", "--hostname", "0.0.0.0", "--port", new URL(origin).port]);
     await waitFor(async () => (await db.processingJob.count({ where: { tenantId: tenants[0], status: "SUCCEEDED" } })) === 3, "real asset worker processing");
     await db.work.update({ where: { id: work.id }, data: { status: "PUBLISHED", publishedAt: new Date() } });
     const product = await db.licenseProduct.create({ data: { tenantId: tenants[0]!, workId: work.id, name: "Session License", slug: "session-license", scope: "ALL_STEMS", versions: { create: { version: 1, priceCents: 2500, termsText: "Synthetic fixture rights. No production music or payment." } } } });
@@ -94,7 +93,6 @@ async function main() {
     const order = await createPendingOrder(tenants[0]!, quote, true, user.email!);
     const checkoutId = "cs_fixture_" + suffix, intentId = "pi_fixture_" + suffix;
     await db.order.update({ where: { id: order.id }, data: { status: "CHECKOUT_CREATED", stripeCheckoutSessionId: checkoutId } });
-    start(["node_modules/next/dist/bin/next", "start", "--hostname", "0.0.0.0", "--port", new URL(origin).port]);
     await waitFor(async () => { try { return (await fetch(origin + "/api/ready")).ok; } catch { return false; } }, "built HTTP application");
     const webhook = async (id: string, type: string, object: unknown) => {
       events.push(id);

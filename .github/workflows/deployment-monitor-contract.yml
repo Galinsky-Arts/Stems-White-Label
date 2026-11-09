@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - .github/deployment-monitor.json
+      - scripts/validate-deployment-inventory.mjs
       - .github/workflows/deployment-monitor-contract.yml
   workflow_dispatch:
 permissions:

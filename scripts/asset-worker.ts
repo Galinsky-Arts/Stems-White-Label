@@ -1,4 +1,5 @@
 import { startWorkerObservation } from "../src/lib/operations";
+import { maintainWorkerLease } from "../src/lib/worker-lease";
 import { hostname } from "node:os";
 
 import { processAudioAsset } from "../src/lib/audio-processor";
@@ -34,13 +35,13 @@ process.on("SIGINT", () => {
 });
 
 async function main() {
-  const recovered = await recoverStaleProcessingJobs(staleMinutes);
-
-  if (recovered.requeued || recovered.failed) {
-    console.log("Recovered stale asset jobs", recovered);
-  }
-
+  let recoverAt = 0;
   while (!stopping) {
+    if (Date.now() >= recoverAt) {
+      const recovered = await recoverStaleProcessingJobs(staleMinutes);
+      if (recovered.requeued || recovered.failed) console.log("Recovered stale asset jobs", recovered);
+      recoverAt = Date.now() + 60000;
+    }
     const job = await claimNextProcessingJob(workerId);
 
     if (!job) {
@@ -49,6 +50,10 @@ async function main() {
     }
 
     const started = await observation.begin();
+    const stopLease = maintainWorkerLease(() => db.processingJob.updateMany({
+      where: { id: job.id, status: "RUNNING", lockedBy: workerId },
+      data: { lockedAt: new Date() },
+    }));
     try {
       await processAudioAsset(job.audioAssetId);
       await markProcessingJobSucceeded(job.id);
@@ -70,6 +75,8 @@ async function main() {
         outcome: result.exhausted ? "exhausted" : "retry_scheduled",
         nextAttemptAt: result.retryAt?.toISOString() ?? null,
       });
+    } finally {
+      await stopLease();
     }
   }
 }
