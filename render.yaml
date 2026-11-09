@@ -1,0 +1,30 @@
+# One free web instance; no paid workers, disks, databases or subscriptions.
+# Existing private environment variables are preserved when this service is adopted.
+services:
+  - type: web
+    name: stems-galinsky-arts
+    runtime: node
+    repo: https://github.com/Galinsky-Arts/Stems-White-Label
+    branch: main
+    plan: free
+    region: virginia
+    numInstances: 1
+    autoDeployTrigger: "off"
+    healthCheckPath: /api/ready
+    buildCommand: npm ci --include=dev && npm run build && npm run db:deploy && BOOTSTRAP_UNSEALED_RECORDS=true npm run db:bootstrap-flagship
+    startCommand: node node_modules/next/dist/bin/next start --hostname 0.0.0.0 --port $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: STEMS_INTEGRATED_WORKERS
+        value: "true"
+      - key: ASSET_WORKER_POLL_MS
+        value: "5000"
+      - key: PACKAGE_WORKER_POLL_MS
+        value: "5000"
+      - key: ASSET_WORKER_STALE_MINUTES
+        value: "2"
+      - key: PACKAGE_WORKER_STALE_MINUTES
+        value: "2"
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
