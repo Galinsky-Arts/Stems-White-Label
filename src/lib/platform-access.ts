@@ -27,6 +27,7 @@ export async function getPlatformAccess() {
     select: {
       id: true,
       email: true,
+      emailVerified: true,
       name: true,
       platformRole: true,
       emailVerified: true,

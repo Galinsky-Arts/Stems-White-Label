@@ -52,9 +52,36 @@ export async function probeDeployment(
   throw lastError;
 }
 
+/** Optional authenticated queue/worker monitor; never follows redirects with the bearer. */
+export async function probeOperations(fetcher, base, token) {
+  const parsed = new URL(base);
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash)
+    throw new Error("Operational monitor target must use credential-free HTTPS");
+  if (typeof token !== "string" || token.length < 32) throw new Error("Operational monitor token is not configured");
+  const response = await fetcher(new URL("/api/operations", parsed), {
+    headers: { authorization: "Bearer " + token },
+    redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(25000),
+  });
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new Error("Operational monitor is not healthy (HTTP " + response.status + ")");
+  }
+  const data = await response.json();
+  if (data?.ok !== true || data.service !== "stems-white-label" || !Array.isArray(data.alerts) || data.alerts.length)
+    throw new Error("Operational monitor returned an unhealthy response");
+  const age = Date.now() - Date.parse(data.observedAt);
+  if (!Number.isFinite(age) || age < -30000 || age > 90000)
+    throw new Error("Operational monitor returned a stale observation");
+  return { ok: true };
+}
+
 export async function main() {
   const target = process.env.STEMS_SITE_URL ?? DEFAULT_URL;
   const result = await probeDeployment(target);
+  if (process.env.STEMS_OPERATIONS_MONITOR_TOKEN) {
+    await probeOperations(fetch, target, process.env.STEMS_OPERATIONS_MONITOR_TOKEN);
+    console.log("Stems authenticated worker/queue operations: PASS");
+  }
   console.log(`Stems public liveness + database readiness: PASS (${result.attempts} attempt(s))`);
   if (process.env.GITHUB_STEP_SUMMARY) {
     const { appendFile } = await import("node:fs/promises");
