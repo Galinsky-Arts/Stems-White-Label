@@ -9,4 +9,4 @@ permissions:
   contents: read
 jobs:
   contract:
-    uses: neophilism/Development-Deployment-Monitor/.github/workflows/validate-client.yml@main
+    uses: pgalinsky/Development-Deployment-Monitor/.github/workflows/validate-client.yml@ccf12c2b2e8aef213172b7285be1f4c425527b8c
