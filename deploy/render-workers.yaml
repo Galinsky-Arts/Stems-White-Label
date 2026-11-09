@@ -1,0 +1,107 @@
+# Review-only plan: two paid workers, $7/month each at current pricing.
+# No resources are created until the reviewed Blueprint sync is approved.
+services:
+  - type: worker
+    name: stems-assets
+    runtime: docker
+    repo: https://github.com/Galinsky-Arts/Stems-White-Label
+    branch: finish/platform-launch
+    plan: 0.5c-512mb
+    region: virginia
+    numInstances: 1
+    autoDeployTrigger: off
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: node --import tsx scripts/asset-worker.ts
+    envVars:
+      - key: DATABASE_URL
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: DATABASE_URL
+      - key: OBJECT_STORAGE_BUCKET
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: OBJECT_STORAGE_BUCKET
+      - key: OBJECT_STORAGE_REGION
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: OBJECT_STORAGE_REGION
+      - key: OBJECT_STORAGE_ENDPOINT
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: OBJECT_STORAGE_ENDPOINT
+      - key: OBJECT_STORAGE_ACCESS_KEY_ID
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: OBJECT_STORAGE_ACCESS_KEY_ID
+      - key: OBJECT_STORAGE_SECRET_ACCESS_KEY
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: OBJECT_STORAGE_SECRET_ACCESS_KEY
+      - key: OBJECT_STORAGE_FORCE_PATH_STYLE
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: OBJECT_STORAGE_FORCE_PATH_STYLE
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: MEDIA_PROCESS_TIMEOUT_MS
+        value: "900000"
+  - type: worker
+    name: stems-packages
+    runtime: docker
+    repo: https://github.com/Galinsky-Arts/Stems-White-Label
+    branch: finish/platform-launch
+    plan: 0.5c-512mb
+    region: virginia
+    numInstances: 1
+    autoDeployTrigger: off
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: node --import tsx scripts/download-package-worker.ts
+    envVars:
+      - key: DATABASE_URL
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: DATABASE_URL
+      - key: OBJECT_STORAGE_BUCKET
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: OBJECT_STORAGE_BUCKET
+      - key: OBJECT_STORAGE_REGION
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: OBJECT_STORAGE_REGION
+      - key: OBJECT_STORAGE_ENDPOINT
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: OBJECT_STORAGE_ENDPOINT
+      - key: OBJECT_STORAGE_ACCESS_KEY_ID
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: OBJECT_STORAGE_ACCESS_KEY_ID
+      - key: OBJECT_STORAGE_SECRET_ACCESS_KEY
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: OBJECT_STORAGE_SECRET_ACCESS_KEY
+      - key: OBJECT_STORAGE_FORCE_PATH_STYLE
+        fromService:
+          type: web
+          name: stems-galinsky-arts
+          envVarKey: OBJECT_STORAGE_FORCE_PATH_STYLE
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: MEDIA_PROCESS_TIMEOUT_MS
+        value: "900000"
