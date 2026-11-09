@@ -130,7 +130,7 @@ export async function GET(request: Request, { params }: PreviewRouteProps) {
       headers,
     });
   } catch (error) {
-    console.error("Unable to read private preview object", error);
+    console.error("Unable to read private preview object");
     return NextResponse.json(
       { error: "Preview source is unavailable." },
       { status: 502 },
@@ -153,7 +153,7 @@ export async function HEAD(request: Request, { params }: PreviewRouteProps) {
 
     return new Response(null, { status: 200, headers });
   } catch (error) {
-    console.error("Unable to inspect private preview object", error);
+    console.error("Unable to inspect private preview object");
     return NextResponse.json(
       { error: "Preview source is unavailable." },
       { status: 502 },

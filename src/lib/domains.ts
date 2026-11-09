@@ -1,3 +1,5 @@
+import { publicTlsTarget } from "./public-address";
+
 import { randomBytes } from "node:crypto";
 import { promises as dns } from "node:dns";
 import { isIP } from "node:net";
@@ -194,9 +196,19 @@ export async function verifyDomainTls(
       ? Math.min(timeoutMs, 15000)
       : 5000;
 
+  let dnsTimer: ReturnType<typeof setTimeout> | undefined;
+  const startedAt = Date.now();
+  const target = await Promise.race([
+    publicTlsTarget(hostname),
+    new Promise<never>((_, reject) => {
+      dnsTimer = setTimeout(() => reject(new Error("TLS DNS lookup timed out.")), timeout);
+    }),
+  ]).finally(() => clearTimeout(dnsTimer));
+  const remaining = Math.max(1, timeout - (Date.now() - startedAt));
+
   return new Promise<void>((resolve, reject) => {
     const socket = tls.connect({
-      host: hostname,
+      host: target.address,
       port: 443,
       servername: hostname,
       rejectUnauthorized: true,
@@ -205,7 +217,7 @@ export async function verifyDomainTls(
     const timer = setTimeout(() => {
       socket.destroy();
       reject(new Error("TLS handshake timed out."));
-    }, timeout);
+    }, remaining);
 
     socket.once("secureConnect", () => {
       clearTimeout(timer);

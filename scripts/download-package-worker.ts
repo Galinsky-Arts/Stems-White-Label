@@ -1,3 +1,5 @@
+import { startWorkerObservation } from "../src/lib/operations";
+import { maintainWorkerLease } from "../src/lib/worker-lease";
 import { hostname } from "node:os";
 
 import { db } from "../src/lib/db";
@@ -19,6 +21,7 @@ const staleMinutes = Math.max(
   Number(process.env.PACKAGE_WORKER_STALE_MINUTES) || 30,
 );
 
+const observation = startWorkerObservation("PACKAGE");
 let stopping = false;
 
 function sleep(milliseconds: number) {
@@ -33,12 +36,13 @@ process.on("SIGINT", () => {
 });
 
 async function main() {
-  const recovered = await recoverStaleDownloadPackages(staleMinutes);
-  if (recovered.requeued || recovered.failed) {
-    console.log("Recovered stale package jobs", recovered);
-  }
-
+  let recoverAt = 0;
   while (!stopping) {
+    if (Date.now() >= recoverAt) {
+      const recovered = await recoverStaleDownloadPackages(staleMinutes);
+      if (recovered.requeued || recovered.failed) console.log("Recovered stale package jobs", recovered);
+      recoverAt = Date.now() + 60000;
+    }
     const packageId = await claimNextDownloadPackage(workerId);
     if (!packageId) {
       await sleep(pollMs);
@@ -51,9 +55,15 @@ async function main() {
     });
     if (!record) continue;
 
+    const started = await observation.begin();
+    const stopLease = maintainWorkerLease(() => db.downloadPackage.updateMany({
+      where: { id: packageId, status: "PROCESSING", lockedBy: workerId },
+      data: { lockedAt: new Date() },
+    }));
     try {
       await buildDownloadPackage(packageId);
-      console.log("Built licensed download package", packageId);
+      await observation.complete(started, true);
+      console.log("Download package completed", { outcome: "succeeded" });
     } catch (error) {
       const result = await markDownloadPackageFailed({
         packageId,
@@ -61,16 +71,20 @@ async function main() {
         maxAttempts: record.maxAttempts,
         error,
       });
-      console.error("Download package failed", packageId, result, error);
+      await observation.complete(started, false);
+      console.error("Download package failed", { outcome: result.exhausted ? "exhausted" : "retry_scheduled", nextAttemptAt: result.retryAt?.toISOString() ?? null });
+    } finally {
+      await stopLease();
     }
   }
 }
 
 main()
   .catch((error) => {
-    console.error("Package worker terminated", error);
+    console.error("Package worker terminated", { outcome: "failed" });
     process.exitCode = 1;
   })
   .finally(async () => {
+    await observation.stop();
     await db.$disconnect();
   });

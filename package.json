@@ -33,35 +33,45 @@
     "db:demo": "tsx src/lib/demo-seed.ts",
     "test:demo-integration": "tsx scripts/validate-demo-mode.ts",
     "prestart": "npm run db:deploy && npm run db:bootstrap-flagship",
-    "db:bootstrap-flagship": "tsx scripts/bootstrap-flagship.ts"
+    "db:bootstrap-flagship": "tsx scripts/bootstrap-flagship.ts",
+    "test:browser-integration": "node --import tsx scripts/validate-browser.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1139.0",
+    "@aws-sdk/lib-storage": "3.1139.0",
+    "@aws-sdk/s3-request-presigner": "3.1139.0",
     "@next-auth/prisma-adapter": "^1.0.7",
     "@prisma/client": "^6.16.0",
+    "archiver": "^8.0.0",
+    "ffmpeg-static": "^5.3.0",
+    "ffprobe-static": "^3.1.0",
     "next": "^16.0.0",
     "next-auth": "^4.24.11",
+    "nodemailer": "^10.4.0",
+    "prisma": "^6.16.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "@aws-sdk/client-s3": "3.1139.0",
-    "@aws-sdk/s3-request-presigner": "3.1139.0",
     "stripe": "^18.5.0",
-    "@aws-sdk/lib-storage": "3.1139.0",
-    "archiver": "^8.0.0",
-    "nodemailer": "^7.0.7"
+    "tsx": "^4.20.6"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@types/archiver": "^8.0.0",
     "@types/node": "^24.7.0",
+    "@types/nodemailer": "^7.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "eslint": "^9.37.0",
     "eslint-config-next": "^16.0.0",
-    "prisma": "^6.16.0",
-    "tsx": "^4.20.6",
-    "typescript": "^5.9.3",
-    "@types/archiver": "^8.0.0",
-    "@types/nodemailer": "^7.0.0"
+    "playwright": "^1.65.0",
+    "typescript": "^5.9.3"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "overrides": {
+    "nodemailer": "$nodemailer",
+    "deepmerge-ts": "^8.0.2",
+    "minimatch": "^11.0.5"
   }
 }

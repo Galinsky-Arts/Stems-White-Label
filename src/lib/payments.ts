@@ -1,4 +1,16 @@
+import type { Prisma } from "@prisma/client";
+
+import { assertCheckoutPaymentMatches, type CheckoutPaymentEvidence } from "./payment-policy";
 import { db } from "@/lib/db";
+
+async function paymentTransaction<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>, tx?: Prisma.TransactionClient) {
+  return tx ? operation(tx) : db.$transaction(operation);
+}
+
+async function lockOrder(tx: Prisma.TransactionClient, orderId: string) {
+  // All payment state transitions serialize on the same row, including webhook retries.
+  await tx.$queryRaw`SELECT id FROM "Order" WHERE id = ${orderId} FOR UPDATE`;
+}
 
 export function normalizeCustomerEmail(email: string) {
   return email.trim().toLowerCase();
@@ -10,10 +22,12 @@ export async function markOrderPaid(input: {
   customerName?: string | null;
   stripeCustomerId?: string | null;
   stripePaymentIntentId?: string | null;
-}) {
+  checkoutEvidence?: CheckoutPaymentEvidence;
+}, transaction?: Prisma.TransactionClient) {
   const normalizedEmail = normalizeCustomerEmail(input.email);
 
-  return db.$transaction(async (tx) => {
+  return paymentTransaction(async (tx) => {
+    await lockOrder(tx, input.orderId);
     const order = await tx.order.findUnique({
       where: { id: input.orderId },
       include: {
@@ -22,6 +36,21 @@ export async function markOrderPaid(input: {
       },
     });
     if (!order) throw new Error("Order not found.");
+
+    if (input.checkoutEvidence) assertCheckoutPaymentMatches(order, input.checkoutEvidence);
+    if (order.stripePaymentIntentId && order.stripePaymentIntentId !== input.stripePaymentIntentId) {
+      throw new Error("Payment intent does not match order.");
+    }
+    // Replays must not change the buyer, payment state, or revoked rights.
+    if (["PAID", "PARTIALLY_REFUNDED", "REFUNDED"].includes(order.status)) {
+      if (order.buyerEmail && normalizeCustomerEmail(order.buyerEmail) !== normalizedEmail) {
+        throw new Error("Paid order customer does not match.");
+      }
+      return tx.order.findUniqueOrThrow({
+        where: { id: order.id },
+        include: { customer: true, items: { include: { purchaseLicense: true } }, payments: true },
+      });
+    }
 
     const customer = await tx.customer.upsert({
       where: {
@@ -119,7 +148,7 @@ export async function markOrderPaid(input: {
         payments: true,
       },
     });
-  });
+  }, transaction);
 }
 
 export async function markOrderPaymentFailed(input: {
@@ -127,14 +156,18 @@ export async function markOrderPaymentFailed(input: {
   stripePaymentIntentId?: string | null;
   failureCode?: string | null;
   failureMessage?: string | null;
-}) {
-  return db.$transaction(async (tx) => {
+}, transaction?: Prisma.TransactionClient) {
+  return paymentTransaction(async (tx) => {
+    await lockOrder(tx, input.orderId);
     const order = await tx.order.findUnique({
       where: { id: input.orderId },
       include: { payments: true },
     });
     if (!order) throw new Error("Order not found.");
-    if (order.status === "PAID" || order.status === "REFUNDED") return order;
+    if (["PAID", "PARTIALLY_REFUNDED", "REFUNDED", "CANCELED"].includes(order.status)) return order;
+    if (order.stripePaymentIntentId && order.stripePaymentIntentId !== input.stripePaymentIntentId) {
+      throw new Error("Payment intent does not match order.");
+    }
 
     await tx.order.update({
       where: { id: order.id },
@@ -162,20 +195,22 @@ export async function markOrderPaymentFailed(input: {
       where: { id: order.id },
       include: { payments: true },
     });
-  });
+  }, transaction);
 }
 
 export async function recordRefund(input: {
   orderId: string;
   providerRefundId: string;
+  stripePaymentIntentId?: string | null;
   amountCents: number;
   reason?: string | null;
-}) {
-  if (!Number.isSafeInteger(input.amountCents) || input.amountCents < 0) {
-    throw new Error("Refund amount must be a non-negative integer.");
+}, transaction?: Prisma.TransactionClient) {
+  if (!Number.isSafeInteger(input.amountCents) || input.amountCents <= 0) {
+    throw new Error("Refund amount must be a positive integer.");
   }
 
-  return db.$transaction(async (tx) => {
+  return paymentTransaction(async (tx) => {
+    await lockOrder(tx, input.orderId);
     const order = await tx.order.findUnique({
       where: { id: input.orderId },
       include: { payments: { include: { refunds: true } } },
@@ -183,10 +218,24 @@ export async function recordRefund(input: {
     if (!order) throw new Error("Order not found.");
     const payment = order.payments[0];
     if (!payment) throw new Error("Order payment not found.");
+    if (input.stripePaymentIntentId && order.stripePaymentIntentId !== input.stripePaymentIntentId) {
+      throw new Error("Refund payment intent does not match order.");
+    }
 
+    if (!["PAID", "PARTIALLY_REFUNDED", "REFUNDED"].includes(order.status)) {
+      throw new Error("Cannot refund an unpaid order.");
+    }
+    const prior = await tx.refund.findUnique({ where: { providerRefundId: input.providerRefundId } });
+    if (prior && (prior.paymentId !== payment.id || prior.amountCents !== input.amountCents)) {
+      throw new Error("Refund does not match the recorded payment.");
+    }
+    const previousTotal = payment.refunds.reduce((sum, refund) => sum + refund.amountCents, 0);
+    if (!prior && previousTotal + input.amountCents > payment.amountCents) {
+      throw new Error("Refund total exceeds the payment amount.");
+    }
     await tx.refund.upsert({
       where: { providerRefundId: input.providerRefundId },
-      update: { amountCents: input.amountCents, reason: input.reason ?? null },
+      update: {},
       create: {
         paymentId: payment.id,
         providerRefundId: input.providerRefundId,
@@ -233,5 +282,5 @@ export async function recordRefund(input: {
       where: { id: order.id },
       include: { payments: { include: { refunds: true } } },
     });
-  });
+  }, transaction);
 }

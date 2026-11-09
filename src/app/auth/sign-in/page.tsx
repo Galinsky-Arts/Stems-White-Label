@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { CustomerEmailSignIn } from "@/components/auth/customer-email-sign-in";
+import { safeInternalCallback } from "@/lib/internal-callback";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
@@ -10,22 +11,16 @@ type PageProps = {
   searchParams: Promise<{ callbackUrl?: string }>;
 };
 
-function safeCallback(value: string | undefined) {
-  return value && value.startsWith("/") && !value.startsWith("//")
-    ? value
-    : null;
-}
-
 export default async function SignInPage({ searchParams }: PageProps) {
   const [session, tenant, params] = await Promise.all([
     getServerSession(authOptions),
     getCurrentTenant(),
     searchParams,
   ]);
-  const callbackUrl = safeCallback(params.callbackUrl) ?? "/library";
+  const callbackUrl = safeInternalCallback(params.callbackUrl) ?? "/library";
 
   if (session?.user?.id) {
-    if (safeCallback(params.callbackUrl)) {
+    if (safeInternalCallback(params.callbackUrl)) {
       redirect(callbackUrl);
     }
 

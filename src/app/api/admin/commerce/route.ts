@@ -1,3 +1,5 @@
+import { checkoutReturnOrigin } from "@/lib/checkout-origin";
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -34,7 +36,7 @@ export async function POST(request: Request) {
 
   try {
     if (action === "start-onboarding") {
-      const origin = new URL(request.url).origin;
+      const origin = checkoutReturnOrigin(request.url, request.headers.get("host"), process.env.NODE_ENV === "production");
       const url = await createConnectedAccountOnboardingLink({
         tenantId: access.tenant.id,
         email: access.session.user?.email ?? null,
@@ -63,9 +65,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to update Stripe commerce.",
+          publicOperationError(error, "Unable to update Stripe commerce."),
       },
       { status: 400 },
     );

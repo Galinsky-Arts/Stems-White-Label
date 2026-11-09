@@ -31,13 +31,18 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Normalize container repository name
+        id: image
+        shell: bash
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/stems-white-label" >> "$GITHUB_OUTPUT"
       - name: Build and conditionally publish immutable Node 22 / Next.js 16 image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ghcr.io/neophilism/stems-white-label:sha-${{ github.sha }}
+          build-args: GIT_SHA=${{ github.sha }}
+          tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
           labels: |
-            org.opencontainers.image.source=https://github.com/neophilism/Stems-White-Label
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
       - run: echo 'Image build alone is not a live media service or a tested database/auth deployment.' >> "$GITHUB_STEP_SUMMARY"

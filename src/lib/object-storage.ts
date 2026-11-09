@@ -6,6 +6,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { safeObjectContentType } from "./object-content-type";
 import { Readable } from "node:stream";
 
 type StorageConfig = {
@@ -81,6 +82,14 @@ export function normalizeStorageKey(key: string) {
   return segments.join("/");
 }
 
+/** Bound signed URL validity rather than trusting client/tenant override. */
+export function privateUrlExpiry(seconds: number | undefined, fallback: number): number {
+  if (seconds === undefined) return fallback;
+  if (!Number.isSafeInteger(seconds) || seconds < 60 || seconds > 900)
+    throw new RangeError("Invalid private URL expiration.");
+  return seconds;
+}
+
 export async function createPrivateUploadUrl(input: {
   storageKey: string;
   contentType: string;
@@ -89,15 +98,19 @@ export async function createPrivateUploadUrl(input: {
 }) {
   const config = getStorageConfig();
   const key = normalizeStorageKey(input.storageKey);
+  if (!Number.isSafeInteger(input.contentLength) || input.contentLength <= 0) throw new Error("Upload length must be a positive integer.");
+  if (safeObjectContentType(input.contentType) !== input.contentType.trim().toLowerCase()) throw new Error("Unsupported upload content type.");
 
   const command = new PutObjectCommand({
     Bucket: config.bucket,
     Key: key,
     ContentType: input.contentType,
+    ContentLength: input.contentLength,
   });
 
   return getSignedUrl(getStorageClient(), command, {
-    expiresIn: input.expiresInSeconds ?? 15 * 60,
+    expiresIn: privateUrlExpiry(input.expiresInSeconds, 15 * 60),
+    signableHeaders: new Set(["content-type", "content-length"]),
   });
 }
 
@@ -113,14 +126,11 @@ export async function createPrivateDownloadUrl(input: {
     Bucket: config.bucket,
     Key: normalizeStorageKey(input.storageKey),
     ResponseContentDisposition: 'attachment; filename="' + safeName + '"',
-    ResponseContentType: input.contentType || undefined,
+    ResponseContentType: safeObjectContentType(input.contentType),
   });
 
   return getSignedUrl(getStorageClient(), command, {
-    expiresIn: input.expiresInSeconds ?? Math.max(
-      60,
-      Number(process.env.DOWNLOAD_URL_TTL_SECONDS) || 5 * 60,
-    ),
+    expiresIn: privateUrlExpiry(input.expiresInSeconds, 5 * 60),
   });
 }
 
@@ -162,13 +172,14 @@ export async function getPrivateObject(
 ) {
   const config = getStorageConfig();
 
-  return getStorageClient().send(
+  const object = await getStorageClient().send(
     new GetObjectCommand({
       Bucket: config.bucket,
       Key: normalizeStorageKey(storageKey),
       Range: options.range || undefined,
     }),
   );
+  return { ...object, ContentType: safeObjectContentType(object.ContentType) };
 }
 
 export async function putPrivateObject(input: {

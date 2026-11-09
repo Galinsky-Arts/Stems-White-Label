@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { randomUUID } from "node:crypto";
 
 import type { ThemeAssetKind } from "@prisma/client";
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to start brand upload." },
+      { error: publicOperationError(error, "Unable to start brand upload.") },
       { status: 400 },
     );
   }

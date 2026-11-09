@@ -70,6 +70,7 @@ export default async function PlatformAdminPage() {
         <div>
           <p className="eyebrow">Platform super admin</p>
           <h1>Stems White Label</h1>
+          <Link href="/platform-admin/operations">Worker and deployment health</Link>
           <p>
             Signed in as {access.user.email ?? access.user.name ?? access.user.id}.
             This control plane spans tenants; tenant-admin permissions do not grant

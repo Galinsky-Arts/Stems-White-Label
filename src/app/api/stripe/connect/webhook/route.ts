@@ -1,7 +1,8 @@
 import Stripe from "stripe";
+import { readWebhookBody } from "@/lib/webhook-body";
 import { NextResponse } from "next/server";
 
-import { db } from "@/lib/db";
+import { processStripeWebhookOnce } from "@/lib/stripe-webhook";
 import {
   persistTenantCommerceAccount,
   stripeAccountSnapshot,
@@ -24,66 +25,32 @@ export async function POST(request: Request) {
 
   let event: Stripe.Event;
   try {
-    const rawBody = await request.text();
+    const rawBody = await readWebhookBody(request);
     event = getStripe().webhooks.constructEvent(
       rawBody,
       signature,
       getStripeConnectWebhookSecret(),
     );
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Invalid Stripe Connect webhook.",
-      },
-      { status: 400 },
-    );
-  }
-
-  const duplicate = await db.stripeWebhookEvent.findUnique({
-    where: {
-      scope_providerEventId: {
-        scope: "CONNECT",
-        providerEventId: event.id,
-      },
-    },
-  });
-  if (duplicate) {
-    return NextResponse.json({ received: true, duplicate: true });
+  } catch {
+    return NextResponse.json({ error: "Invalid Stripe Connect webhook." }, { status: 400 });
   }
 
   try {
-    if (event.type === "account.updated") {
+    const result = await processStripeWebhookOnce("CONNECT", event, async (tx) => {
+      if (event.type !== "account.updated") return;
       const account = event.data.object as Stripe.Account;
-      const commerce = await db.tenantCommerce.findUnique({
-        where: { stripeAccountId: account.id },
-        select: { tenantId: true },
-      });
-
-      if (commerce) {
-        await persistTenantCommerceAccount(
-          commerce.tenantId,
-          stripeAccountSnapshot(account),
-        );
-      }
-    }
-
-    await db.stripeWebhookEvent.create({
-      data: {
-        scope: "CONNECT",
-        providerEventId: event.id,
-        eventType: event.type,
-      },
+      const commerce = await tx.tenantCommerce.findUnique({ where: { stripeAccountId: account.id }, select: { tenantId: true } });
+      if (!commerce) return;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"connect:" + commerce.tenantId}, 0))::text`;
+      // Read current provider state after serialization; old event snapshots cannot
+      // overwrite a newer account restriction/readiness update.
+      const current = await getStripe().accounts.retrieve(account.id);
+      if (current.deleted) throw new Error("Connected account is deleted.");
+      await persistTenantCommerceAccount(commerce.tenantId, stripeAccountSnapshot(current), tx);
     });
-
-    return NextResponse.json({ received: true });
-  } catch (error) {
-    console.error("Stripe Connect webhook processing failed", event.id, error);
-    return NextResponse.json(
-      { error: "Connect webhook processing failed." },
-      { status: 500 },
-    );
+    return NextResponse.json({ received: true, ...result });
+  } catch {
+    console.error("Stripe Connect webhook processing failed");
+    return NextResponse.json({ error: "Connect webhook processing failed." }, { status: 500 });
   }
 }

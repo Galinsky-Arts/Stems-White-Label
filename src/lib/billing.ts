@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type Stripe from "stripe";
 
 import { db } from "@/lib/db";
@@ -280,8 +281,9 @@ export async function persistSubscriptionSnapshot(input: {
   currentPeriodEnd: Date | null;
   canceledAt: Date | null;
   endedAt: Date | null;
-}) {
-  const existing = await db.tenantSubscription.findUnique({
+}, transaction?: Prisma.TransactionClient) {
+  const client = transaction ?? db;
+  const existing = await client.tenantSubscription.findUnique({
     where: { tenantId: input.tenantId },
   });
 
@@ -293,6 +295,10 @@ export async function persistSubscriptionSnapshot(input: {
     throw new Error("Tenant already has a different active Stripe subscription.");
   }
 
+  if (existing?.stripeCustomerId && existing.stripeCustomerId !== input.stripeCustomerId) {
+    throw new Error("Billing customer does not match tenant.");
+  }
+
   const now = new Date();
   const grace =
     input.status === "PAST_DUE"
@@ -301,7 +307,7 @@ export async function persistSubscriptionSnapshot(input: {
         : nextGraceDate(now)
       : null;
 
-  return db.tenantSubscription.upsert({
+  return client.tenantSubscription.upsert({
     where: { tenantId: input.tenantId },
     create: {
       tenantId: input.tenantId,
@@ -368,6 +374,7 @@ export async function persistSubscriptionSnapshot(input: {
 export async function syncStripeSubscription(
   tenantId: string,
   subscription: Stripe.Subscription,
+  transaction?: Prisma.TransactionClient,
 ) {
   const item = subscription.items.data[0];
   if (!item) throw new Error("Stripe subscription has no subscription item.");
@@ -393,7 +400,7 @@ export async function syncStripeSubscription(
     currentPeriodEnd: dateFromUnix(item.current_period_end),
     canceledAt: dateFromUnix(subscription.canceled_at),
     endedAt: dateFromUnix(subscription.ended_at),
-  });
+  }, transaction);
 }
 
 export async function getTenantUsage(tenantId: string) {

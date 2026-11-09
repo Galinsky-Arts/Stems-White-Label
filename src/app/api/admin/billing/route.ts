@@ -1,3 +1,5 @@
+import { checkoutReturnOrigin } from "@/lib/checkout-origin";
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -59,9 +61,7 @@ export async function GET() {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to load SaaS billing.",
+          publicOperationError(error, "Unable to load SaaS billing."),
       },
       { status: 500 },
     );
@@ -76,9 +76,8 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const action = String(body?.action ?? "");
-  const origin = new URL(request.url).origin;
-
   try {
+    const origin = checkoutReturnOrigin(request.url, request.headers.get("host"), process.env.NODE_ENV === "production");
     if (action === "subscribe") {
       const url = await createSaasCheckoutSession({
         tenantId: access.tenant.id,
@@ -112,9 +111,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to update SaaS billing.",
+          publicOperationError(error, "Unable to update SaaS billing."),
       },
       { status: 400 },
     );

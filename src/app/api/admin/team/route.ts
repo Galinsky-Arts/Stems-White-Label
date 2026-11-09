@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -122,7 +123,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Unable to update the team.";
+      publicOperationError(error, "Unable to update the team.");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getPlatformAccess } from "@/lib/platform-access";
@@ -88,9 +89,7 @@ export async function POST(request: Request, { params }: RouteProps) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to perform platform action.",
+          publicOperationError(error, "Unable to perform platform action."),
       },
       { status: 400 },
     );

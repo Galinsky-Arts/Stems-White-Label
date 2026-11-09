@@ -226,7 +226,7 @@ export async function buildDownloadPackage(packageId: string) {
   });
 
   archive.on("warning", (error) => {
-    console.warn("Download package archive warning", record.id, error);
+    console.warn("Download package archive warning");
   });
 
   const uploadPromise = uploadPrivateStream({

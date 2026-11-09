@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type Stripe from "stripe";
 
 import { db } from "@/lib/db";
@@ -109,8 +110,10 @@ export async function ensureTenantCommerce(tenantId: string) {
 export async function persistTenantCommerceAccount(
   tenantId: string,
   snapshot: CommerceAccountSnapshot,
+  transaction?: Prisma.TransactionClient,
 ) {
-  const existing = await db.tenantCommerce.findUnique({
+  const client = transaction ?? db;
+  const existing = await client.tenantCommerce.findUnique({
     where: { tenantId },
   });
 
@@ -122,7 +125,7 @@ export async function persistTenantCommerceAccount(
   }
 
   const now = new Date();
-  return db.tenantCommerce.upsert({
+  return client.tenantCommerce.upsert({
     where: { tenantId },
     create: {
       tenantId,
@@ -198,4 +201,13 @@ export async function getTenantCommerceForCheckout(
       commerce.platformFeeBps,
     ),
   };
+}
+
+/** Refresh is a return from an owner-started onboarding flow, not an initiation endpoint. */
+export function onboardingRefreshAllowed(state: {
+  stripeAccountId: string | null;
+  onboardingStartedAt: Date | null;
+} | null, now = new Date()) {
+  const age = state?.onboardingStartedAt ? now.getTime() - state.onboardingStartedAt.getTime() : -1;
+  return Boolean(state?.stripeAccountId) && age >= 0 && age <= 30 * 60 * 1000;
 }

@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -84,7 +85,7 @@ export async function POST(request: Request, { params }: RouteProps) {
     return NextResponse.json({ licenseProduct: created }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to create license." },
+      { error: publicOperationError(error, "Unable to create license.") },
       { status: 400 },
     );
   }

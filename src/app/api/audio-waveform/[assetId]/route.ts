@@ -63,7 +63,7 @@ export async function GET(request: Request, { params }: WaveformRouteProps) {
       },
     });
   } catch (error) {
-    console.error("Unable to read waveform object", error);
+    console.error("Unable to read waveform object");
     return NextResponse.json(
       { error: "Waveform source is unavailable." },
       { status: 502 },

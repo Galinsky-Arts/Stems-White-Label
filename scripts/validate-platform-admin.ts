@@ -1,3 +1,4 @@
+import { validateOperations } from "./validate-operations";
 import assert from "node:assert/strict";
 
 import {
@@ -274,6 +275,7 @@ async function main() {
       }),
     );
 
+    await validateOperations();
     console.log("Platform super-admin database integration validation passed.");
   } finally {
     // The audit ledger intentionally RESTRICTs deletion of referenced actors and

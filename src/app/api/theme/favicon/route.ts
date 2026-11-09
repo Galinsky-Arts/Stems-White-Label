@@ -36,7 +36,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error("Unable to read favicon asset", error);
+    console.error("Unable to read favicon asset");
     return NextResponse.json({ error: "Brand asset unavailable." }, { status: 502 });
   }
 }

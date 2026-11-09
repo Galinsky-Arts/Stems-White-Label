@@ -1,3 +1,4 @@
+import { publicOperationError, publicStoredError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -127,7 +128,25 @@ export async function GET(_request: Request, { params }: WorkRouteProps) {
     return NextResponse.json({ error: "Work not found." }, { status: 404 });
   }
 
-  return NextResponse.json({ work, artists, collections });
+  const sanitizeAsset = <T extends { processingJobs: { lastError: string | null }[] }>(asset: T) => ({
+    ...asset,
+    processingJobs: asset.processingJobs.map((job) => ({
+      ...job,
+      lastError: publicStoredError(job.lastError),
+    })),
+  });
+  return NextResponse.json({
+    work: {
+      ...work,
+      audioAssets: work.audioAssets.map(sanitizeAsset),
+      stemGroups: work.stemGroups.map((group) => ({
+        ...group,
+        audioAssets: group.audioAssets.map(sanitizeAsset),
+      })),
+    },
+    artists,
+    collections,
+  });
 }
 
 export async function PATCH(request: Request, { params }: WorkRouteProps) {
@@ -362,7 +381,7 @@ export async function PATCH(request: Request, { params }: WorkRouteProps) {
     return NextResponse.json({ work: saved });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Unable to save Work.";
+      publicOperationError(error, "Unable to save Work.");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
@@ -459,7 +478,7 @@ export async function POST(request: Request, { params }: WorkRouteProps) {
     throw new Error("Unsupported Work action.");
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Unable to update Work status.";
+      publicOperationError(error, "Unable to update Work status.");
     return NextResponse.json({ error: message }, { status: 409 });
   }
 }
