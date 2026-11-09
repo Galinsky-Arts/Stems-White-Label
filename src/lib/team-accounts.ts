@@ -509,6 +509,11 @@ export async function acceptTeamInvitation(input: {
         throw new Error("Sign in with the email address that was invited.");
       }
 
+      const identity = await tx.user.findUnique({ where: { id: input.userId }, select: { email: true, emailVerified: true } });
+      if (!identity?.emailVerified || !identity.email || normalizeTeamEmail(identity.email) !== normalizedEmail) {
+        throw new Error("Verify the invited email address before accepting.");
+      }
+
       const existing = await tx.tenantMembership.findUnique({
         where: {
           tenantId_userId: {

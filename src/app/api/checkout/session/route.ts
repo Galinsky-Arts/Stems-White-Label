@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -116,7 +117,7 @@ export async function POST(request: Request) {
           ? normalizeAnalyticsSessionId(analyticsSession)
           : null,
       }).catch((analyticsError) => {
-        console.error("Unable to record checkout analytics", analyticsError);
+        console.error("Unable to record checkout analytics");
       });
 
       return NextResponse.json({ url: session.url, orderId: order.id });
@@ -129,7 +130,7 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to start checkout." },
+      { error: publicOperationError(error, "Unable to start checkout.") },
       { status: 400 },
     );
   }

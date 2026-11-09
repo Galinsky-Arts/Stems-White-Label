@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { onboardingRefreshAllowed } from "./commerce";
+
 import {
   calculatePlatformFeeCents,
   commerceReadiness,
@@ -61,4 +63,14 @@ test("commerce is ready only after onboarding, charges, and payouts are ready", 
     }),
     { ready: true, status: "READY" },
   );
+});
+
+test("GET onboarding refresh cannot initiate or revive an old account flow", () => {
+  const now = new Date("2026-10-18T00:00:00Z");
+  assert.equal(onboardingRefreshAllowed(null, now), false);
+  assert.equal(onboardingRefreshAllowed({ stripeAccountId: null, onboardingStartedAt: now }, now), false);
+  assert.equal(onboardingRefreshAllowed({ stripeAccountId: "acct_fixture", onboardingStartedAt: null }, now), false);
+  assert.equal(onboardingRefreshAllowed({ stripeAccountId: "acct_fixture", onboardingStartedAt: new Date(now.getTime() - 31 * 60 * 1000) }, now), false);
+  assert.equal(onboardingRefreshAllowed({ stripeAccountId: "acct_fixture", onboardingStartedAt: new Date(now.getTime() + 1000) }, now), false);
+  assert.equal(onboardingRefreshAllowed({ stripeAccountId: "acct_fixture", onboardingStartedAt: now }, now), true);
 });

@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -109,7 +110,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     return NextResponse.json({ licenseProduct: updated });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to update license." },
+      { error: publicOperationError(error, "Unable to update license.") },
       { status: 400 },
     );
   }

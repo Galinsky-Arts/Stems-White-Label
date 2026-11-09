@@ -12,5 +12,10 @@ test("processing retries use bounded exponential backoff", () => {
 
 test("processing errors are bounded before persistence", () => {
   const message = safeProcessingError(new Error("x".repeat(5000)));
-  assert.equal(message.length, 4000);
+  assert.ok(message.length <= 4000);
+  assert.doesNotMatch(message, /xxx/);
+  const privateError = new Error("postgresql://user:secret@private/db customer@example.com");
+  assert.equal(safeProcessingError(privateError), "Processing failed. Inspect the job state and retry safely.");
+  assert.equal(safeProcessingError(new Error("Audio duration could not be determined.")), "Audio duration could not be determined.");
+  assert.equal(safeProcessingError(new Error("Media command failed with exit code 2.")), "Media command failed with exit code 2.");
 });

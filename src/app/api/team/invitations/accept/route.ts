@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ membership });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Unable to accept invitation.";
+      publicOperationError(error, "Unable to accept invitation.");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

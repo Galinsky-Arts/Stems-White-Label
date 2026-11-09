@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to register domain." },
+      { error: publicOperationError(error, "Unable to register domain.") },
       { status: 400 },
     );
   }

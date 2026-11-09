@@ -61,7 +61,7 @@ export async function GET(request: Request, { params }: RouteProps) {
       },
     });
   } catch (error) {
-    console.error("Unable to read artwork", error);
+    console.error("Unable to read artwork");
     return NextResponse.json({ error: "Artwork unavailable." }, { status: 502 });
   }
 }

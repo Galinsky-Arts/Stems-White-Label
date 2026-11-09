@@ -53,7 +53,7 @@ async function main() {
 
     try {
       await buildDownloadPackage(packageId);
-      console.log("Built licensed download package", packageId);
+      console.log("Built licensed download package");
     } catch (error) {
       const result = await markDownloadPackageFailed({
         packageId,
@@ -61,14 +61,14 @@ async function main() {
         maxAttempts: record.maxAttempts,
         error,
       });
-      console.error("Download package failed", packageId, result, error);
+      console.error("Download package failed", { attempt: record.attempts, exhausted: result.exhausted, retryAt: result.retryAt });
     }
   }
 }
 
 main()
   .catch((error) => {
-    console.error("Package worker terminated", error);
+    console.error("Package worker terminated");
     process.exitCode = 1;
   })
   .finally(async () => {

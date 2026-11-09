@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type Stripe from "stripe";
 
 import { db } from "@/lib/db";
@@ -117,30 +118,18 @@ export async function refreshTenantStripeSubscription(tenantId: string) {
 export async function syncSubscriptionFromCheckoutSession(
   tenantId: string,
   session: Stripe.Checkout.Session,
+  transaction?: Prisma.TransactionClient,
 ) {
+  const client = transaction ?? db;
   const subscriptionId = stringId(session.subscription);
   const customerId = stringId(session.customer);
-  if (!subscriptionId || !customerId) {
-    throw new Error("Subscription Checkout session is missing Stripe identifiers.");
+  if (!subscriptionId || !customerId) throw new Error("Subscription Checkout session is missing Stripe identifiers.");
+  const existing = await client.tenantSubscription.findUnique({ where: { tenantId } });
+  if (!existing || existing.stripeCustomerId !== customerId || existing.stripeCheckoutSessionId !== session.id) {
+    throw new Error("Subscription checkout does not match tenant.");
   }
-
-  await db.tenantSubscription.upsert({
-    where: { tenantId },
-    create: {
-      tenantId,
-      stripeCustomerId: customerId,
-      stripeSubscriptionId: subscriptionId,
-      stripeCheckoutSessionId: session.id,
-    },
-    update: {
-      stripeCustomerId: customerId,
-      stripeSubscriptionId: subscriptionId,
-      stripeCheckoutSessionId: session.id,
-    },
-  });
-
   const subscription = await getStripe().subscriptions.retrieve(subscriptionId);
-  return syncStripeSubscription(tenantId, subscription);
+  return syncStripeSubscription(tenantId, subscription, transaction);
 }
 
 export { listBillingPlans };

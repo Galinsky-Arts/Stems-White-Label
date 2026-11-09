@@ -3,16 +3,25 @@ import type { NextAuthOptions } from "next-auth";
 import EmailProvider from "next-auth/providers/email";
 import GithubProvider from "next-auth/providers/github";
 
+import { verifiedGithubProfile } from "./github-identity";
+
 import { db } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(db),
-  session: { strategy: "database" },
+  session: { strategy: "database", maxAge: 24 * 60 * 60, updateAge: 60 * 60 },
   providers: [
     GithubProvider({
       clientId: process.env.GITHUB_ID ?? "",
       clientSecret: process.env.GITHUB_SECRET ?? "",
+      userinfo: {
+        url: "https://api.github.com/user",
+        async request({ client, tokens }) {
+          const profile = await client.userinfo(tokens.access_token!);
+          return verifiedGithubProfile(profile, tokens.access_token);
+        },
+      },
     }),
     EmailProvider({
       server: process.env.EMAIL_SERVER ?? "",
@@ -28,7 +37,7 @@ export const authOptions: NextAuthOptions = {
         if (!tenant) return false;
 
         const normalizedEmail = user.email.trim().toLowerCase();
-        const [customer, invitation] = await Promise.all([
+        const [customer, invitation, membership] = await Promise.all([
           db.customer.findUnique({
             where: {
               tenantId_normalizedEmail: {
@@ -48,9 +57,13 @@ export const authOptions: NextAuthOptions = {
             },
             select: { id: true },
           }),
+          db.tenantMembership.findFirst({
+            where: { tenantId: tenant.id, user: { email: { equals: normalizedEmail, mode: "insensitive" } } },
+            select: { id: true },
+          }),
         ]);
 
-        return Boolean(customer || invitation);
+        return Boolean(customer || invitation || membership);
       }
 
       return true;
@@ -60,6 +73,18 @@ export const authOptions: NextAuthOptions = {
         session.user.id = user.id;
       }
       return session;
+    },
+  },
+  events: {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === "github" && profile && "email_verified" in profile && profile.email_verified === true &&
+          typeof profile.email === "string" && user.email &&
+          profile.email.trim().toLowerCase() === user.email.trim().toLowerCase()) {
+        await db.user.updateMany({
+          where: { id: user.id, email: user.email },
+          data: { emailVerified: new Date() },
+        });
+      }
     },
   },
   pages: {

@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ work }, { status: 201 });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Unable to create Work.";
+      publicOperationError(error, "Unable to create Work.");
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

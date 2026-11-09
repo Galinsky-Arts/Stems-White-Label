@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -82,7 +83,7 @@ export async function PATCH(request: Request, { params }: RouteProps) {
     return NextResponse.json({ collection });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to save Collection." },
+      { error: publicOperationError(error, "Unable to save Collection.") },
       { status: 400 },
     );
   }

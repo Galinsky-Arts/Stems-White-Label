@@ -1,26 +1,24 @@
 import { headers } from "next/headers";
 import { cache } from "react";
 
+import { parseRequestHostname } from "./request-host";
+
 import { db } from "@/lib/db";
 import { matchesManagedPlatformHost } from "@/lib/managed-host";
 
 export function normalizeHostname(value: string) {
-  return value
-    .split(",")[0]!
-    .trim()
-    .toLowerCase()
-    .replace(/:\d+$/, "")
-    .replace(/\.$/, "");
+  return parseRequestHostname(value) ?? "";
 }
 
 export async function resolveTenantByHostnameDirect(hostname: string) {
   const normalized = normalizeHostname(hostname);
+  if (!normalized) return null;
 
   if (
-    normalized === "localhost" ||
-    normalized === "127.0.0.1" ||
-    normalized === "::1" ||
-    normalized.endsWith(".localhost") ||
+    (process.env.NODE_ENV !== "production" && (
+      normalized === "localhost" || normalized === "127.0.0.1" ||
+      normalized === "::1" || normalized.endsWith(".localhost")
+    )) ||
     matchesManagedPlatformHost(hostname, process.env.PLATFORM_DEFAULT_HOSTNAME)
   ) {
     const slug = process.env.DEFAULT_TENANT_SLUG ?? "unsealed-records";

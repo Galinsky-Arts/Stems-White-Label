@@ -104,6 +104,9 @@ async function main() {
     /invitation not found/i,
   );
 
+  await assert.rejects(acceptTeamInvitation({ tenantId: tenant.id, userId: invitee.id, userEmail: invitee.email, token: issued.token }), /verify the invited email/i);
+  await prisma.user.update({ where: { id: invitee.id }, data: { emailVerified: new Date() } });
+  await assert.rejects(acceptTeamInvitation({ tenantId: tenant.id, userId: outsider.id, userEmail: invitee.email, token: issued.token }), /verify the invited email/i);
   const membership = await acceptTeamInvitation({
     tenantId: tenant.id,
     userId: invitee.id,

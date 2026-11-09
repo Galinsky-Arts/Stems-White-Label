@@ -29,13 +29,14 @@ export async function getPlatformAccess() {
       email: true,
       name: true,
       platformRole: true,
+      emailVerified: true,
     },
   });
   if (!user) return null;
 
   const allowed =
     user.platformRole === "SUPER_ADMIN" ||
-    platformEmailIsBootstrapAdmin(user.email);
+    (Boolean(user.emailVerified) && platformEmailIsBootstrapAdmin(user.email));
 
   return allowed ? { session, user } : null;
 }

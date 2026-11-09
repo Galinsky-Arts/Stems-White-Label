@@ -29,7 +29,7 @@ export async function GET(_request: Request, { params }: ManifestRouteProps) {
       },
     });
   } catch (error) {
-    console.error("Unable to build audio manifest", error);
+    console.error("Unable to build audio manifest");
     return NextResponse.json(
       { error: "Preview delivery is not configured." },
       { status: 503 },

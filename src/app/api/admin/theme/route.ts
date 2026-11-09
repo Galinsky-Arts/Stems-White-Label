@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { getTenantApiAccess } from "@/lib/access";
@@ -55,7 +56,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ theme: saved });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to save theme." },
+      { error: publicOperationError(error, "Unable to save theme.") },
       { status: 400 },
     );
   }

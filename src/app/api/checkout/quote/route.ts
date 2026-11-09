@@ -1,3 +1,4 @@
+import { publicOperationError } from "@/lib/public-operation-error";
 import { NextResponse } from "next/server";
 
 import { quoteLicenseProducts } from "@/lib/checkout";
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to quote cart." },
+      { error: publicOperationError(error, "Unable to quote cart.") },
       { status: 400 },
     );
   }

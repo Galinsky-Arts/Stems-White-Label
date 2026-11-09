@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { spawn } from "node:child_process";
+import { runMediaCommand, SAFE_MEDIA_INPUT_ARGS } from "./media-command";
 
 export type AudioMetadata = {
   durationMs: number;
@@ -22,71 +22,6 @@ type FfprobeDocument = {
     duration?: string;
   };
 };
-
-async function runCommand(
-  executable: string,
-  args: string[],
-  options: { maxStdoutBytes?: number } = {},
-) {
-  return new Promise<{ stdout: Buffer; stderr: string }>((resolve, reject) => {
-    const child = spawn(executable, args, {
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    const stdout: Buffer[] = [];
-    const stderr: Buffer[] = [];
-    let stdoutBytes = 0;
-    let settled = false;
-    const maxStdoutBytes = options.maxStdoutBytes ?? 64 * 1024 * 1024;
-
-    child.stdout.on("data", (chunk: Buffer) => {
-      if (settled) return;
-      stdoutBytes += chunk.length;
-
-      if (stdoutBytes > maxStdoutBytes) {
-        settled = true;
-        child.kill("SIGKILL");
-        reject(new Error("Media command exceeded the stdout safety limit."));
-        return;
-      }
-
-      stdout.push(Buffer.from(chunk));
-    });
-
-    child.stderr.on("data", (chunk: Buffer) => {
-      stderr.push(Buffer.from(chunk));
-    });
-
-    child.once("error", (error) => {
-      if (settled) return;
-      settled = true;
-      reject(error);
-    });
-
-    child.once("close", (code) => {
-      if (settled) return;
-      settled = true;
-      const stderrText = Buffer.concat(stderr).toString("utf8").trim();
-
-      if (code !== 0) {
-        reject(
-          new Error(
-            executable +
-              " exited with code " +
-              String(code) +
-              (stderrText ? ": " + stderrText.slice(-3000) : ""),
-          ),
-        );
-        return;
-      }
-
-      resolve({
-        stdout: Buffer.concat(stdout),
-        stderr: stderrText,
-      });
-    });
-  });
-}
 
 export function parseFfprobeMetadata(document: FfprobeDocument): AudioMetadata {
   const audio = document.streams?.find(
@@ -126,13 +61,14 @@ export function parseFfprobeMetadata(document: FfprobeDocument): AudioMetadata {
 
 export async function probeAudio(filePath: string) {
   const executable = process.env.FFPROBE_PATH || "ffprobe";
-  const result = await runCommand(executable, [
+  const result = await runMediaCommand(executable, [
     "-v",
     "error",
     "-print_format",
     "json",
     "-show_streams",
     "-show_format",
+    ...SAFE_MEDIA_INPUT_ARGS,
     filePath,
   ]);
 
@@ -153,11 +89,12 @@ export async function transcodePreview(
 ) {
   const executable = process.env.FFMPEG_PATH || "ffmpeg";
 
-  await runCommand(executable, [
+  await runMediaCommand(executable, [
     "-hide_banner",
     "-loglevel",
     "error",
     "-y",
+    ...SAFE_MEDIA_INPUT_ARGS,
     "-i",
     sourcePath,
     "-map",
@@ -213,12 +150,13 @@ export async function generateWaveform(filePath: string) {
   const executable = process.env.FFMPEG_PATH || "ffmpeg";
   const sampleRateHz = 2000;
 
-  const result = await runCommand(
+  const result = await runMediaCommand(
     executable,
     [
       "-hide_banner",
       "-loglevel",
       "error",
+      ...SAFE_MEDIA_INPUT_ARGS,
       "-i",
       filePath,
       "-map",

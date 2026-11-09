@@ -1,3 +1,5 @@
+import { publicOperationError } from "./public-operation-error";
+
 import { db } from "@/lib/db";
 
 export function retryDelayMs(attempts: number) {
@@ -6,9 +8,8 @@ export function retryDelayMs(attempts: number) {
 }
 
 export function safeProcessingError(error: unknown) {
-  const message =
-    error instanceof Error ? error.message : "Unknown processing failure.";
-  return message.slice(0, 4000);
+  if (error instanceof Error && /^Media command failed with exit code (?:[0-9]{1,3}|null)\.$/.test(error.message)) return error.message;
+  return publicOperationError(error, "Processing failed. Inspect the job state and retry safely.").slice(0, 4000);
 }
 
 export async function claimNextProcessingJob(workerId: string) {

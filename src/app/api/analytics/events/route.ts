@@ -11,6 +11,7 @@ import {
   normalizeAnalyticsSessionId,
 } from "@/lib/analytics";
 import { db } from "@/lib/db";
+import { publicAnalyticsError } from "@/lib/public-api-errors";
 import { getCurrentTenant } from "@/lib/tenant";
 
 export async function POST(request: Request) {
@@ -111,9 +112,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          error instanceof Error
-            ? error.message
-            : "Unable to record analytics event.",
+          publicAnalyticsError(error),
       },
       {
         status: 400,
