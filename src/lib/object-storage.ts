@@ -82,6 +82,14 @@ export function normalizeStorageKey(key: string) {
   return segments.join("/");
 }
 
+/** Bound signed URL validity rather than trusting client/tenant override. */
+export function privateUrlExpiry(seconds: number | undefined, fallback: number): number {
+  if (seconds === undefined) return fallback;
+  if (!Number.isSafeInteger(seconds) || seconds < 60 || seconds > 900)
+    throw new RangeError("Invalid private URL expiration.");
+  return seconds;
+}
+
 export async function createPrivateUploadUrl(input: {
   storageKey: string;
   contentType: string;
@@ -101,7 +109,7 @@ export async function createPrivateUploadUrl(input: {
   });
 
   return getSignedUrl(getStorageClient(), command, {
-    expiresIn: input.expiresInSeconds ?? 15 * 60,
+    expiresIn: privateUrlExpiry(input.expiresInSeconds, 15 * 60),
     signableHeaders: new Set(["content-type", "content-length"]),
   });
 }
@@ -122,10 +130,7 @@ export async function createPrivateDownloadUrl(input: {
   });
 
   return getSignedUrl(getStorageClient(), command, {
-    expiresIn: input.expiresInSeconds ?? Math.max(
-      60,
-      Number(process.env.DOWNLOAD_URL_TTL_SECONDS) || 5 * 60,
-    ),
+    expiresIn: privateUrlExpiry(input.expiresInSeconds, 5 * 60),
   });
 }
 
