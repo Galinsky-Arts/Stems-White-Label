@@ -9,7 +9,7 @@ services:
     plan: 0.5c-512mb
     region: virginia
     numInstances: 1
-    autoDeployTrigger: off
+    autoDeployTrigger: "off"
     dockerfilePath: ./Dockerfile
     dockerContext: .
     dockerCommand: node --import tsx scripts/asset-worker.ts
@@ -61,7 +61,7 @@ services:
     plan: 0.5c-512mb
     region: virginia
     numInstances: 1
-    autoDeployTrigger: off
+    autoDeployTrigger: "off"
     dockerfilePath: ./Dockerfile
     dockerContext: .
     dockerCommand: node --import tsx scripts/download-package-worker.ts
