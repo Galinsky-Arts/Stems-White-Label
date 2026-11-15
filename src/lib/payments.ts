@@ -1,6 +1,12 @@
 import type { Prisma } from "@prisma/client";
 
 import { assertCheckoutPaymentMatches, type CheckoutPaymentEvidence } from "./payment-policy";
+import {
+  assertRefundAmounts,
+  assertRefundReplay,
+  isPaymentReplayOfSettledOrder,
+  isSettledOrderStatus,
+} from "./payment-integrity";
 import { db } from "@/lib/db";
 
 async function paymentTransaction<T>(operation: (tx: Prisma.TransactionClient) => Promise<T>, tx?: Prisma.TransactionClient) {
@@ -42,7 +48,7 @@ export async function markOrderPaid(input: {
       throw new Error("Payment intent does not match order.");
     }
     // Replays must not change the buyer, payment state, or revoked rights.
-    if (["PAID", "PARTIALLY_REFUNDED", "REFUNDED"].includes(order.status)) {
+    if (isPaymentReplayOfSettledOrder(order.status)) {
       if (order.buyerEmail && normalizeCustomerEmail(order.buyerEmail) !== normalizedEmail) {
         throw new Error("Paid order customer does not match.");
       }
@@ -205,9 +211,7 @@ export async function recordRefund(input: {
   amountCents: number;
   reason?: string | null;
 }, transaction?: Prisma.TransactionClient) {
-  if (!Number.isSafeInteger(input.amountCents) || input.amountCents <= 0) {
-    throw new Error("Refund amount must be a positive integer.");
-  }
+  assertRefundAmounts({ capturedCents: Number.MAX_SAFE_INTEGER, previousRefundsCents: 0, refundCents: input.amountCents });
 
   return paymentTransaction(async (tx) => {
     await lockOrder(tx, input.orderId);
@@ -222,16 +226,18 @@ export async function recordRefund(input: {
       throw new Error("Refund payment intent does not match order.");
     }
 
-    if (!["PAID", "PARTIALLY_REFUNDED", "REFUNDED"].includes(order.status)) {
+    if (!isSettledOrderStatus(order.status)) {
       throw new Error("Cannot refund an unpaid order.");
     }
     const prior = await tx.refund.findUnique({ where: { providerRefundId: input.providerRefundId } });
-    if (prior && (prior.paymentId !== payment.id || prior.amountCents !== input.amountCents)) {
-      throw new Error("Refund does not match the recorded payment.");
-    }
-    const previousTotal = payment.refunds.reduce((sum, refund) => sum + refund.amountCents, 0);
-    if (!prior && previousTotal + input.amountCents > payment.amountCents) {
-      throw new Error("Refund total exceeds the payment amount.");
+    if (prior) {
+      assertRefundReplay(prior, { paymentId: payment.id, amountCents: input.amountCents });
+    } else {
+      assertRefundAmounts({
+        capturedCents: payment.amountCents,
+        previousRefundsCents: payment.refunds.reduce((sum, refund) => sum + refund.amountCents, 0),
+        refundCents: input.amountCents,
+      });
     }
     await tx.refund.upsert({
       where: { providerRefundId: input.providerRefundId },
