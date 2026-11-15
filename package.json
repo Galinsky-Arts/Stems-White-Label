@@ -19,6 +19,7 @@
     "test:cms-integration": "tsx scripts/validate-catalog-cms.ts",
     "test:licensing-integration": "tsx scripts/validate-licensing.ts",
     "test:checkout-integration": "tsx scripts/validate-checkout-orders.ts",
+    "test:stripe-lifecycle-integration": "tsx scripts/validate-stripe-lifecycle.ts",
     "worker:packages": "tsx scripts/download-package-worker.ts",
     "test:delivery-integration": "tsx scripts/validate-secure-delivery.ts",
     "test:package-integration": "tsx scripts/validate-download-package.ts",
