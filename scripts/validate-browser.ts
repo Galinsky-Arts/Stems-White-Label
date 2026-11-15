@@ -63,6 +63,8 @@ async function main() {
       } });
       tenants.push(tenant.id);
     }
+    // Tenant B owns its own published work; neither tenant may expose the other's catalog.
+    await db.work.create({ data: { tenantId: tenants[1]!, title: "Sibling Session", slug: "sibling-session", status: "PUBLISHED", publishedAt: new Date() } });
     const work = await db.work.create({ data: { tenantId: tenants[0]!, title: "Synthetic Session", slug: "synthetic-session", status: "PROCESSING", durationMs: 8000 } });
     const sourceFile = join(directory, "source.wav");
     execFileSync("ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "sine=frequency=220:duration=8", "-c:a", "pcm_s24le", sourceFile]);
@@ -106,23 +108,65 @@ async function main() {
     assert.equal(await db.purchaseLicense.count({ where: { orderId: order.id } }), 1);
     const purchase = await db.purchaseLicense.findFirstOrThrow({ where: { orderId: order.id }, include: { downloadEntitlements: true } });
     assert.equal(purchase.downloadEntitlements.length, 2);
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch({ headless: true, executablePath: process.env.STEMS_BROWSER_EXECUTABLE || undefined });
     const context = await browser.newContext({ reducedMotion: "reduce" });
     const page = await context.newPage();
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await context.addCookies([{ name: "next-auth.session-token", value: sessionToken, domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" }]);
+    const audit = async (label: string) => {
+      const accessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
+      assert.deepEqual(accessibility.violations.map(({ id, nodes }) => ({ id, count: nodes.length, targets: nodes.slice(0, 3).map((node) => node.target.join(" ")) })), [], label + " accessibility");
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), label + " has no horizontal overflow");
+    };
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(origin + "/works/synthetic-session");
       await page.getByRole("heading", { name: "Synthetic Session", exact: true }).waitFor();
-      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "No horizontal overflow at " + width);
-      const accessibility = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
-      assert.deepEqual(accessibility.violations.map(({ id, nodes }) => ({ id, count: nodes.length })), [], "Work page accessibility at " + width);
+      await audit("Work page at " + width);
+      await page.goto(origin + "/");
+      await audit("Tenant A storefront at " + width);
+      await page.goto(origin + "/library");
+      await page.getByRole("heading", { name: "Synthetic Session", exact: true }).waitFor();
+      await audit("Customer library at " + width);
+      await page.goto(sibling + "/");
+      await audit("Tenant B storefront at " + width);
     }
-    await page.getByRole("button", { name: "Load & play all stems", exact: true }).click();
+
+    // Two-tenant isolation: each storefront lists only its own works and 404s the other's.
+    for (const [host, own, foreign] of [[origin, "Synthetic Session", "Sibling Session"], [sibling, "Sibling Session", "Synthetic Session"]] as const) {
+      await page.goto(host + "/");
+      const text = await page.locator("body").innerText();
+      assert.ok(text.includes(own), host + " storefront lists its own work");
+      assert.ok(!text.includes(foreign), host + " storefront must not list another tenant's work");
+    }
+    assert.equal((await page.request.get(origin + "/works/sibling-session")).status(), 404);
+    assert.equal((await page.request.get(sibling + "/works/synthetic-session")).status(), 404);
+
+    // Keyboard-only operation of the player: reach controls with Tab, operate with Enter/Space, visible focus.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(origin + "/works/synthetic-session");
+    await page.getByRole("heading", { name: "Synthetic Session", exact: true }).waitFor();
+    await page.locator("body").focus();
+    const loadButton = page.getByRole("button", { name: "Load & play all stems", exact: true });
+    let reached = false;
+    for (let index = 0; index < 80 && !reached; index++) {
+      await page.keyboard.press("Tab");
+      reached = await loadButton.evaluate((element) => element === document.activeElement);
+    }
+    assert.ok(reached, "Player controls are reachable with the Tab key.");
+    const focusStyle = await loadButton.evaluate((element) => { const style = getComputedStyle(element); return { outline: style.outlineStyle, width: style.outlineWidth, shadow: style.boxShadow }; });
+    assert.ok((focusStyle.outline !== "none" && focusStyle.width !== "0px") || focusStyle.shadow !== "none", "Keyboard focus is visible: " + JSON.stringify(focusStyle));
+    await page.keyboard.press("Enter");
     await page.getByRole("button", { name: "Pause", exact: true }).waitFor();
-    await page.getByRole("button", { name: "Mute Rhythm", exact: true }).click();
+    const muteRhythm = page.getByRole("button", { name: "Mute Rhythm", exact: true });
+    reached = false;
+    for (let index = 0; index < 30 && !reached; index++) {
+      await page.keyboard.press("Tab");
+      reached = await muteRhythm.evaluate((element) => element === document.activeElement);
+    }
+    assert.ok(reached, "Stem mute controls are reachable with the Tab key.");
+    await page.keyboard.press("Space");
     assert.equal(await page.getByRole("button", { name: "Unmute Rhythm", exact: true }).getAttribute("aria-pressed"), "true");
     await page.getByRole("button", { name: "Unmute all", exact: true }).click();
     await page.getByRole("button", { name: "Pause", exact: true }).click();
@@ -144,6 +188,10 @@ async function main() {
     const download = await page.request.get(entitlementUrl);
     assert.equal(download.status(), 200);
     assert.equal(createHash("sha256").update(await download.body()).digest("hex"), createHash("sha256").update(sourceBytes).digest("hex"));
+    // The same signed-in buyer on tenant B cannot use tenant A's entitlement.
+    await context.addCookies([{ name: "next-auth.session-token", value: sessionToken, domain: "127.0.0.1", path: "/", httpOnly: true, sameSite: "Lax" }]);
+    const crossTenant = await page.request.get(sibling + "/api/library/downloads/" + purchase.downloadEntitlements[0]!.id);
+    assert.ok([401, 403, 404].includes(crossTenant.status()), "Cross-tenant entitlement must be refused, got " + crossTenant.status());
     const record = await requestDownloadPackage({ tenantId: tenants[0]!, customerId: purchase.customerId, purchaseLicenseId: purchase.id });
     await waitFor(async () => (await db.downloadPackage.findUniqueOrThrow({ where: { id: record.id } })).status === "READY", "real licensed package worker");
     const packaged = await page.request.get(origin + "/api/library/packages/" + record.id + "/download");
@@ -154,7 +202,7 @@ async function main() {
     assert.equal((await page.request.get(entitlementUrl)).status(), 404);
     assert.equal((await page.request.get(origin + "/api/library/packages/" + record.id + "/download")).status(), 404);
     assert.deepEqual(errors, [], "No browser runtime errors.");
-    console.log("Browser acceptance passed: two tenants, desktop/mobile accessibility, real processed preview playback, mute/seek/resume, signed fixture fulfillment/replay, original checksum, real ZIP worker, and refund revocation.");
+    console.log("Browser acceptance passed: two-tenant catalog/page/entitlement isolation, axe WCAG 2.1 AA on work/storefront/library pages (desktop+mobile), keyboard-only player operation with visible focus, real processed preview playback, mute/seek/resume, signed fixture fulfillment/replay, original checksum, real ZIP worker, and refund revocation.");
   } finally {
     await browser?.close();
     for (const child of children.reverse()) await stop(child);
