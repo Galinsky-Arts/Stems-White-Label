@@ -10,7 +10,7 @@
   ],
   "schemaVersion": 1,
   "roadmapVersion": 1,
-  "observedAt": "2026-11-09T22:26:57.889Z",
+  "observedAt": "2026-11-15T19:07:43.000Z",
   "units": [
     {
       "id": "SWL-01",
@@ -298,6 +298,7 @@
       "externalDependencies": [],
       "externalPrerequisites": [],
       "contributingPrs": [
+        36,
         43
       ]
     },
@@ -311,6 +312,7 @@
       "externalDependencies": [],
       "externalPrerequisites": [],
       "contributingPrs": [
+        37,
         43
       ]
     },
@@ -324,7 +326,9 @@
       "externalDependencies": [],
       "externalPrerequisites": [],
       "contributingPrs": [
-        43
+        43,
+        45,
+        46
       ]
     },
     {
@@ -360,6 +364,7 @@
       "externalDependencies": [],
       "externalPrerequisites": [],
       "contributingPrs": [
+        40,
         43
       ]
     },
@@ -800,11 +805,11 @@
       "number": 30,
       "title": "Stop recurring GitHub Actions deployment probes",
       "url": "https://github.com/Galinsky-Arts/Stems-White-Label/pull/30",
-      "state": "open",
+      "state": "closed",
       "draft": false,
       "createdAt": "2026-10-12T14:09:30Z",
-      "updatedAt": "2026-10-16T18:14:27Z",
-      "closedAt": null,
+      "updatedAt": "2026-11-15T18:49:47Z",
+      "closedAt": "2026-11-15T18:49:47Z",
       "mergedAt": null,
       "headSha": "b501edce3abdc5b00ee5838da75766f0ca80ea41",
       "baseRef": "main",
@@ -860,15 +865,15 @@
       "number": 34,
       "title": "Harden payment settlement and refund replay integrity",
       "url": "https://github.com/Galinsky-Arts/Stems-White-Label/pull/34",
-      "state": "open",
+      "state": "closed",
       "draft": false,
       "createdAt": "2026-10-16T14:55:26Z",
-      "updatedAt": "2026-10-16T14:56:11Z",
-      "closedAt": null,
+      "updatedAt": "2026-11-15T19:03:54Z",
+      "closedAt": "2026-11-15T19:03:54Z",
       "mergedAt": null,
       "headSha": "8f73eeabfa4385eb5f85dc7180a0a8abb1c3f9f0",
       "baseRef": "main",
-      "mergeCommitSha": "a10e27ab78037373cb8fdfd9b917142955e2858e"
+      "mergeCommitSha": null
     },
     {
       "id": 4891976827,
@@ -878,7 +883,7 @@
       "state": "open",
       "draft": false,
       "createdAt": "2026-10-16T17:31:37Z",
-      "updatedAt": "2026-10-16T17:42:32Z",
+      "updatedAt": "2026-11-15T18:49:49Z",
       "closedAt": null,
       "mergedAt": null,
       "headSha": "39f80af442d5405e4891d253c8dc7eb0fd526632",
@@ -890,75 +895,75 @@
       "number": 36,
       "title": "SWL-24: Security and operations controls",
       "url": "https://github.com/Galinsky-Arts/Stems-White-Label/pull/36",
-      "state": "open",
+      "state": "closed",
       "draft": false,
       "createdAt": "2026-10-18T21:37:29Z",
-      "updatedAt": "2026-11-01T18:47:25Z",
-      "closedAt": null,
-      "mergedAt": null,
+      "updatedAt": "2026-11-09T22:46:28Z",
+      "closedAt": "2026-11-09T22:46:28Z",
+      "mergedAt": "2026-11-09T22:46:28Z",
       "headSha": "d814376a1faed38cd32e6102e06584285b788327",
       "baseRef": "main",
-      "mergeCommitSha": "2de0080aed4f86fe2bbc4f2776838cadbfb18b7a"
+      "mergeCommitSha": "2df7bc3905767bcce8dcc623b097e3632fa2c03b"
     },
     {
       "id": 4913030524,
       "number": 37,
       "title": "SWL-25: Deployment and worker observability",
       "url": "https://github.com/Galinsky-Arts/Stems-White-Label/pull/37",
-      "state": "open",
+      "state": "closed",
       "draft": true,
       "createdAt": "2026-10-18T21:38:35Z",
-      "updatedAt": "2026-11-01T18:58:48Z",
-      "closedAt": null,
-      "mergedAt": null,
+      "updatedAt": "2026-11-09T22:46:28Z",
+      "closedAt": "2026-11-09T22:46:28Z",
+      "mergedAt": "2026-11-09T22:46:28Z",
       "headSha": "43a6d9fe076bd5345e593431c4c7868a3a7b635e",
       "baseRef": "main",
-      "mergeCommitSha": "0c4a37b89e534fda6e8d953c044e658da2adbfe1"
+      "mergeCommitSha": "466bad4151e13f9a68135756a38d96eb36850c66"
     },
     {
       "id": 4913035470,
       "number": 38,
       "title": "SWL-26: Stripe commerce and end-to-end license verification",
       "url": "https://github.com/Galinsky-Arts/Stems-White-Label/pull/38",
-      "state": "open",
+      "state": "closed",
       "draft": true,
       "createdAt": "2026-10-18T21:39:17Z",
-      "updatedAt": "2026-10-18T21:39:17Z",
-      "closedAt": null,
+      "updatedAt": "2026-11-15T19:03:56Z",
+      "closedAt": "2026-11-15T19:03:56Z",
       "mergedAt": null,
       "headSha": "823ba227da3eccb3ce9ca27cd3d8055fd3dde26a",
       "baseRef": "main",
-      "mergeCommitSha": "94028a4c15390edcd8af7f827b6b863c2bf0b211"
+      "mergeCommitSha": null
     },
     {
       "id": 4913046128,
       "number": 39,
-      "title": "SWL-28: Multi-tenant integration, accessibility and regression acceptance",
+      "title": "SWL-28: Multi-tenant, accessibility and keyboard regression acceptance",
       "url": "https://github.com/Galinsky-Arts/Stems-White-Label/pull/39",
       "state": "open",
       "draft": true,
       "createdAt": "2026-10-18T21:40:43Z",
-      "updatedAt": "2026-10-18T21:40:43Z",
+      "updatedAt": "2026-11-15T19:07:14Z",
       "closedAt": null,
       "mergedAt": null,
-      "headSha": "aefdf98377e71aef34217941b5b4e25bae958812",
+      "headSha": "d631a79bab5aff7476b232a9bca458152765b46f",
       "baseRef": "main",
-      "mergeCommitSha": "e92697c11482349d01f1edc4db3a41582d32ab46"
+      "mergeCommitSha": null
     },
     {
       "id": 4913052449,
       "number": 40,
       "title": "SWL-29: Provider cutover, private audio, durable workers and backups",
       "url": "https://github.com/Galinsky-Arts/Stems-White-Label/pull/40",
-      "state": "open",
+      "state": "closed",
       "draft": true,
       "createdAt": "2026-10-18T21:41:34Z",
-      "updatedAt": "2026-10-18T21:41:34Z",
-      "closedAt": null,
-      "mergedAt": null,
+      "updatedAt": "2026-11-09T22:46:28Z",
+      "closedAt": "2026-11-09T22:46:28Z",
+      "mergedAt": "2026-11-09T22:46:28Z",
       "headSha": "501c0f12dd52df3f37a68576cec55c95524db0b9",
       "baseRef": "main",
-      "mergeCommitSha": "4478feb41faaee9ec17503b2171e78f636703825"
+      "mergeCommitSha": "272f50495d1d918b341f427d8dccfd15d07a0f9f"
     },
     {
       "id": 4941651912,
@@ -989,6 +994,66 @@
       "headSha": "504509c7020ff5f759c3ae45c337ee8bbfb6b0d7",
       "baseRef": "main",
       "mergeCommitSha": "b6975d0bc778e89b08493a5c340f111dba3f5ecf"
+    },
+    {
+      "id": 5232226569,
+      "number": 43,
+      "title": "Finish free Stems deployment with integrated workers and verified Stripe delivery",
+      "url": "https://github.com/Galinsky-Arts/Stems-White-Label/pull/43",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-11-09T22:27:15Z",
+      "updatedAt": "2026-11-09T22:56:58Z",
+      "closedAt": "2026-11-09T22:46:26Z",
+      "mergedAt": "2026-11-09T22:46:26Z",
+      "headSha": "0a2df65b83d8f2ee586ce8d341475db3718786e0",
+      "baseRef": "main",
+      "mergeCommitSha": "36843efb1f5547c8c5c224b41a145361246d7013"
+    },
+    {
+      "id": 5232526692,
+      "number": 44,
+      "title": "Configure explicit readiness for the existing free Stems service",
+      "url": "https://github.com/Galinsky-Arts/Stems-White-Label/pull/44",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-11-09T22:52:37Z",
+      "updatedAt": "2026-11-09T22:55:05Z",
+      "closedAt": "2026-11-09T22:55:04Z",
+      "mergedAt": "2026-11-09T22:55:04Z",
+      "headSha": "6d6626330a621187e588c4b5be38b8afda75a017",
+      "baseRef": "main",
+      "mergeCommitSha": "76d1accfa570e86c3e5049b3dc228cb2ed3dd6dc"
+    },
+    {
+      "id": 5325968896,
+      "number": 45,
+      "title": "Port refund/replay integrity guards (#34) and webhook error redaction (#38)",
+      "url": "https://github.com/Galinsky-Arts/Stems-White-Label/pull/45",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-11-15T18:49:37Z",
+      "updatedAt": "2026-11-15T19:03:42Z",
+      "closedAt": "2026-11-15T19:03:42Z",
+      "mergedAt": "2026-11-15T19:03:42Z",
+      "headSha": "c8753823f223b1a3ad1659318944568cdcfc10d0",
+      "baseRef": "main",
+      "mergeCommitSha": "d7b23f7291c13dc4eed28e5965da35f9aca7c1bb"
+    },
+    {
+      "id": 5325986309,
+      "number": 46,
+      "title": "Add offline stripe-mock fixtures and Stripe lifecycle integration tests",
+      "url": "https://github.com/Galinsky-Arts/Stems-White-Label/pull/46",
+      "state": "closed",
+      "draft": false,
+      "createdAt": "2026-11-15T18:51:45Z",
+      "updatedAt": "2026-11-15T19:03:49Z",
+      "closedAt": "2026-11-15T19:03:49Z",
+      "mergedAt": "2026-11-15T19:03:49Z",
+      "headSha": "5ae8a3b421b01e436f35d39d62f52f31af009185",
+      "baseRef": "main",
+      "mergeCommitSha": "ca51e1d9958843095a1985124dc3a49b67547bc4"
     }
   ]
 }
