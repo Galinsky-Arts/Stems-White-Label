@@ -206,8 +206,13 @@ Optional/configurable:
 - FFMPEG_PATH
 - FFPROBE_PATH
 
-The bucket must remain private. Its CORS policy should permit PUT requests from the
-tenant application's origin with Content-Type allowed; downloads continue through
+The bucket must remain private. Uploads first try a presigned direct PUT (needs a
+bucket CORS rule allowing PUT from the app origin). If the browser cannot reach
+the bucket (CORS/network error, 403 or 5xx), the admin client automatically
+relays the file through the app (`/api/admin/uploads/relay`): 6 MiB chunks
+forwarded as S3 multipart parts, at most one chunk in memory, size and part
+layout checked against the declared upload. `npm run test:upload-relay-integration`
+proves this end to end against a local S3 emulator. Downloads continue through
 the application rather than public bucket URLs.
 
 ### PR validation
@@ -1766,9 +1771,10 @@ to request the refund automatically (off by default).
 - Built and tested: SWL-1..26 and SWL-28 (two-tenant, accessibility and
   keyboard browser acceptance), cancellation/late-payment reconciliation,
   built-in password sign-in.
-- SWL-27 needs the owner's real music: the admin uploads masters/stems through
-  Admin → Catalog (direct-to-object-storage upload, processing workers run
-  in-process). No catalog content is invented.
+- SWL-27 needs the owner's real music: the admin uploads masters/stems and
+  artwork through Admin → Catalog (direct upload, with automatic server relay
+  fallback when the bucket lacks CORS; processing workers run in-process). No
+  catalog content is invented.
 - SWL-29/30 need owner/provider action: a Stripe account and keys
   (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) for real checkout, a custom
   domain, and a paid-license acceptance purchase. Checkout stays unavailable

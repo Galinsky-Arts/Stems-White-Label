@@ -8,6 +8,7 @@ import {
   type ChangeEvent,
   type ReactNode,
 } from "react";
+import { uploadToPrivateStorage } from "@/lib/upload-client";
 
 type Asset = {
   id: string;
@@ -323,12 +324,14 @@ export function CatalogWorkEditor({ workId }: { workId: string }) {
         throw new Error(intentPayload.error || "Unable to prepare upload.");
       }
 
-      const upload = await fetch(intentPayload.uploadUrl, {
-        method: "PUT",
-        headers: intentPayload.requiredHeaders,
-        body: file,
+      await uploadToPrivateStorage({
+        file,
+        uploadUrl: intentPayload.uploadUrl,
+        requiredHeaders: intentPayload.requiredHeaders,
+        kind: "audio",
+        assetId: intentPayload.assetId,
+        onFallback: () => setMessage("Direct storage upload unavailable; uploading " + file.name + " through the server…"),
       });
-      if (!upload.ok) throw new Error("Object-storage upload failed.");
 
       const complete = await fetch(
         "/api/admin/assets/" + intentPayload.assetId + "/complete",
@@ -373,12 +376,13 @@ export function CatalogWorkEditor({ workId }: { workId: string }) {
         throw new Error(payload.error || "Unable to prepare artwork upload.");
       }
 
-      const upload = await fetch(payload.uploadUrl, {
-        method: "PUT",
-        headers: payload.requiredHeaders,
-        body: file,
+      await uploadToPrivateStorage({
+        file,
+        uploadUrl: payload.uploadUrl,
+        requiredHeaders: payload.requiredHeaders,
+        kind: "artwork",
+        assetId: payload.assetId,
       });
-      if (!upload.ok) throw new Error("Artwork upload failed.");
 
       const complete = await fetch("/api/admin/artwork/" + payload.assetId + "/complete", {
         method: "POST",
