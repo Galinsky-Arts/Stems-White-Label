@@ -37,7 +37,8 @@
     "db:bootstrap-flagship": "tsx scripts/bootstrap-flagship.ts",
     "test:browser-integration": "node --import tsx scripts/validate-browser.ts",
     "db:bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
-    "test:password-auth-integration": "tsx scripts/validate-password-auth.ts"
+    "test:password-auth-integration": "tsx scripts/validate-password-auth.ts",
+    "test:upload-relay-integration": "tsx scripts/validate-upload-relay.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1139.0",

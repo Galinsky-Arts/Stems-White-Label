@@ -72,6 +72,13 @@ jobs:
           OBJECT_STORAGE_ACCESS_KEY_ID: synthetic-ci-key
           OBJECT_STORAGE_SECRET_ACCESS_KEY: synthetic-ci-secret
           OBJECT_STORAGE_FORCE_PATH_STYLE: "true"
+      - name: Prove catalog upload relay end to end (direct PUT blocked -> server relay)
+        run: npm run test:upload-relay-integration
+        env:
+          OBJECT_STORAGE_ENDPOINT: http://127.0.0.1:9000
+          OBJECT_STORAGE_ACCESS_KEY_ID: synthetic-ci-key
+          OBJECT_STORAGE_SECRET_ACCESS_KEY: synthetic-ci-secret
+          OBJECT_STORAGE_FORCE_PATH_STYLE: "true"
       - name: Production dependency audit
         run: npm audit --omit=dev
       - name: Validate repository identity and roadmap

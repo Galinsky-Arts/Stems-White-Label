@@ -1,5 +1,9 @@
 import {
+  AbortMultipartUploadCommand,
+  CompleteMultipartUploadCommand,
+  CreateMultipartUploadCommand,
   GetObjectCommand,
+  UploadPartCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -237,4 +241,41 @@ export async function uploadFileToPrivateStorage(input: {
     contentType: input.contentType,
     contentLength: stat.size,
   });
+}
+
+// ---- Server-relayed multipart upload (fallback when the browser cannot PUT to the bucket directly) ----
+
+export async function startPrivateMultipartUpload(storageKey: string, contentType: string) {
+  const config = getStorageConfig();
+  if (safeObjectContentType(contentType) !== contentType.trim().toLowerCase()) throw new Error("Unsupported upload content type.");
+  const result = await getStorageClient().send(new CreateMultipartUploadCommand({
+    Bucket: config.bucket, Key: normalizeStorageKey(storageKey), ContentType: contentType,
+  }));
+  if (!result.UploadId) throw new Error("Object storage returned no upload id.");
+  return result.UploadId;
+}
+
+export async function uploadPrivatePart(input: { storageKey: string; uploadId: string; partNumber: number; body: Uint8Array }) {
+  const config = getStorageConfig();
+  const result = await getStorageClient().send(new UploadPartCommand({
+    Bucket: config.bucket, Key: normalizeStorageKey(input.storageKey), UploadId: input.uploadId,
+    PartNumber: input.partNumber, Body: input.body, ContentLength: input.body.byteLength,
+  }));
+  if (!result.ETag) throw new Error("Object storage returned no part ETag.");
+  return result.ETag;
+}
+
+export async function completePrivateMultipartUpload(input: { storageKey: string; uploadId: string; parts: { partNumber: number; etag: string }[] }) {
+  const config = getStorageConfig();
+  await getStorageClient().send(new CompleteMultipartUploadCommand({
+    Bucket: config.bucket, Key: normalizeStorageKey(input.storageKey), UploadId: input.uploadId,
+    MultipartUpload: { Parts: input.parts.map((part) => ({ PartNumber: part.partNumber, ETag: part.etag })) },
+  }));
+}
+
+export async function abortPrivateMultipartUpload(storageKey: string, uploadId: string) {
+  const config = getStorageConfig();
+  await getStorageClient().send(new AbortMultipartUploadCommand({
+    Bucket: config.bucket, Key: normalizeStorageKey(storageKey), UploadId: uploadId,
+  }));
 }
