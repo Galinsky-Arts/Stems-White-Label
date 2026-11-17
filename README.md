@@ -1726,100 +1726,53 @@ PostgreSQL triggers reject UPDATE and DELETE against TenantAuditLog, making the 
 
 ### Authentication
 
-Invited staff may use the existing email provider to authenticate during the invitation flow even when they are not customers. Existing customer magic-link behavior remains unchanged.
+Three sign-in methods share NextAuth's database sessions:
 
-### Validation
-
-CI adds unit coverage for email normalization, role validation, owner-role protections, invitation expiry state, and token hashing.
-
-A PostgreSQL team-account integration test proves invitation creation, seat-limit reservation, cross-tenant rejection, acceptance, role changes, immediate revocation, last-owner protection, expected audit actions, and database rejection of audit UPDATE/DELETE.
-
-All previous migration, unit, queue, CMS, navigation, theme, domain, Stripe Connect, SaaS billing, analytics, platform-admin, licensing, Checkout, delivery, package, media, TypeScript, and production-build gates remain enabled.
-
-## Presentation and SaaS demo mode
-
-PR 20 completes the original product roadmap with an opt-in presentation surface
-for prospective artist and label customers.
-
-Enable:
-
-DEMO_MODE=true
-
-The presentation is available at:
-
-/demo
-
-Seed its fictional sample tenant with:
-
-npm run db:demo
-
-The sample tenant slug defaults to stems-demo and can be changed with
-DEMO_TENANT_SLUG.
-
-### Presentation surface
-
-The demo is deliberately customer-facing rather than a development dashboard. It
-contains no branch names, PR state, CI output, database identifiers, internal
-routes, worker controls, or other implementation artifacts.
-
-It demonstrates:
-
-- a polished fictional tenant and example source catalog
-- a live three-theme white-label transformation without mutating tenant data
-- source-group and licensing presentation
-- a guided platform feature tour
-- a four-step tenant onboarding story
-- clean Studio, Label, and House SaaS pricing presentation
-
-Displayed pricing is presentation copy only. Actual production SaaS entitlements
-and billing remain authoritative from the Stripe Billing configuration implemented
-in PR 16.
-
-### Safe demo behavior
-
-DEMO_MODE is false unless explicitly enabled. When disabled, /demo returns the
-normal not-found response.
-
-The fictional catalog contains no real artist works, audio objects, customer
-orders, payments, or credentials. Its license text explicitly identifies itself
-as demonstration material and it cannot silently substitute for production
-commerce configuration.
-
-Theme switching in /demo is client-side presentation state. It does not write to
-TenantTheme or change any production tenant.
-
-### Validation
-
-CI adds unit coverage for explicit demo gating, demo-tenant configuration, theme
-configuration, feature-tour completeness, and pricing presentation.
-
-A PostgreSQL integration test seeds an isolated demo tenant and verifies its
-white-label entitlement, theme, published collection, three example Works,
-creator-defined source groups, editorial sections, Reveal sequences, and versioned
-license offerings.
-
-All previous validation gates remain enabled.
-
-## Local setup
-
-1. Copy .env.example to .env.
-2. Run docker compose up -d.
-3. Run npm install.
-4. Run npm run db:migrate.
-5. Run npm run db:seed.
-6. Run npm test.
-7. Run npm run dev.
-
-The local tenant resolver falls back to DEFAULT_TENANT_SLUG, which defaults to
-unsealed-records.
-
-## Authentication
-
-Create a GitHub OAuth application and set GITHUB_ID, GITHUB_SECRET,
-NEXTAUTH_URL, and NEXTAUTH_SECRET.
+- **Built-in email + password (works with no external provider).** Passwords
+  are scrypt-hashed with a per-password salt; attempts are rate limited per
+  email (5 per 15 minutes, then a 15-minute lock) and per client IP (30 per 15
+  minutes) in the `AuthRateLimit` table, which stores only hashes of the keys.
+  `POST /api/auth/password` creates an ordinary NextAuth session; signed-in
+  users change their password at `/account/password` (other sessions are
+  signed out).
+- **Owner bootstrap.** At build/deploy `npm run db:bootstrap-admin` reads the
+  Render env var `STEMS_BOOTSTRAP_ADMIN_PASSWORD` and provisions that password
+  for the first address in `PLATFORM_SUPER_ADMIN_EMAILS` (override with
+  `STEMS_BOOTSTRAP_ADMIN_EMAIL`), marks the user platform `SUPER_ADMIN`, and
+  makes them `OWNER` of `DEFAULT_TENANT_SLUG`. Once the owner chooses their own
+  password, the env value no longer overrides it; changing the env value
+  rotates the password only while it is still the bootstrap one.
+- **Optional:** GitHub OAuth (`GITHUB_ID`, `GITHUB_SECRET`) and customer email
+  links (`EMAIL_SERVER`, `EMAIL_FROM`). The GitHub button appears only when
+  configured.
 
 Memberships are tenant-scoped. Authentication alone does not grant tenant admin
 access; a TenantMembership with an appropriate role is also required.
+
+## Payments on canceled orders
+
+If Stripe reports a successful payment for an order that was already
+`CANCELED` (e.g. an expired checkout completed late), the order stays canceled,
+**no license, customer record or download entitlement is granted**, the
+payment is recorded, and the order is flagged `reconciliation = NEEDS_REVIEW`.
+Owners/admins see it under Admin → Commerce → "Payments on canceled orders" and
+can refund it through Stripe (one idempotent full refund, reversing the
+destination transfer and platform fee) or mark it resolved with a note. The
+refund webhook closes the review. Set `STEMS_AUTO_REFUND_CANCELED_PAYMENTS=true`
+to request the refund automatically (off by default).
+
+## Release status (2026-11-17)
+
+- Built and tested: SWL-1..26 and SWL-28 (two-tenant, accessibility and
+  keyboard browser acceptance), cancellation/late-payment reconciliation,
+  built-in password sign-in.
+- SWL-27 needs the owner's real music: the admin uploads masters/stems through
+  Admin → Catalog (direct-to-object-storage upload, processing workers run
+  in-process). No catalog content is invented.
+- SWL-29/30 need owner/provider action: a Stripe account and keys
+  (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) for real checkout, a custom
+  domain, and a paid-license acceptance purchase. Checkout stays unavailable
+  until Stripe is configured. PR #35 (Authorize.net) remains open, unmerged.
 
 ## End-to-End Everywhere progress
 

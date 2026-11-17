@@ -33,9 +33,11 @@
     "test:team-integration": "tsx scripts/validate-team-accounts.ts",
     "db:demo": "tsx src/lib/demo-seed.ts",
     "test:demo-integration": "tsx scripts/validate-demo-mode.ts",
-    "prestart": "npm run db:deploy && npm run db:bootstrap-flagship",
+    "prestart": "npm run db:deploy && npm run db:bootstrap-flagship && npm run db:bootstrap-admin",
     "db:bootstrap-flagship": "tsx scripts/bootstrap-flagship.ts",
-    "test:browser-integration": "node --import tsx scripts/validate-browser.ts"
+    "test:browser-integration": "node --import tsx scripts/validate-browser.ts",
+    "db:bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
+    "test:password-auth-integration": "tsx scripts/validate-password-auth.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1139.0",

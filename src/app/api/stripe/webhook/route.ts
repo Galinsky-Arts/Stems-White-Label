@@ -8,6 +8,8 @@ import { db } from "@/lib/db";
 import { processStripeWebhookOnce } from "@/lib/stripe-webhook";
 import { markOrderPaid, markOrderPaymentFailed, recordRefund } from "@/lib/payments";
 import { getStripe, getStripeWebhookSecret } from "@/lib/stripe";
+import { autoRefundCanceledPaymentsEnabled } from "@/lib/payment-integrity";
+import { requestCanceledOrderRefund } from "@/lib/payment-reconciliation";
 
 function stringId(value: string | { id: string } | null | undefined) {
   return typeof value === "string" ? value : value?.id ?? null;
@@ -157,7 +159,17 @@ export async function POST(request: Request) {
     const result = await processStripeWebhookOnce("PAYMENTS", event, (tx) => processEvent(event, tx, resolvedRefundOrderId));
     if (!result.duplicate && ["checkout.session.completed", "checkout.session.async_payment_succeeded"].includes(event.type)) {
       const session = event.data.object as Stripe.Checkout.Session;
-      if (session.payment_status === "paid" && session.metadata?.orderId) {
+      const flagged = session.metadata?.orderId
+        ? await db.order.findUnique({ where: { id: session.metadata.orderId }, select: { tenantId: true, reconciliation: true } })
+        : null;
+      if (flagged?.reconciliation === "NEEDS_REVIEW") {
+        // Late payment on a canceled order: no access was granted. Optionally refund now.
+        if (autoRefundCanceledPaymentsEnabled()) {
+          await requestCanceledOrderRefund(flagged.tenantId, session.metadata!.orderId!).catch(() => {
+            console.error("Automatic refund of canceled-order payment failed; left for admin review");
+          });
+        }
+      } else if (session.payment_status === "paid" && session.metadata?.orderId) {
         await recordPurchaseAnalytics(session.metadata.orderId).catch(() => {
           console.error("Unable to record purchase analytics");
         });

@@ -212,6 +212,48 @@ async function main() {
     assert.equal((await db.purchaseLicense.findFirstOrThrow({ where: { orderId: order.id } })).revokedAt!.getTime(), revokedAt);
     assert.equal(await db.customer.count({ where: { tenantId: tenant.id } }), 1);
 
+    // A payment that completes after the order was canceled must never grant access.
+    const lateQuote = await quoteLicenseProducts(tenant.id, [product.id]);
+    const lateOrder = await createPendingOrder(tenant.id, lateQuote, true, "late@example.com", {
+      stripeConnectedAccountId: "acct_checkout_validation", platformFeeCents: 750,
+    });
+    await db.order.update({ where: { id: lateOrder.id }, data: { stripeCheckoutSessionId: "cs_late_" + suffix } });
+    const lateSession = {
+      id: "cs_late_" + suffix, mode: "payment", payment_status: "paid", currency: "usd", amount_total: lateOrder.totalCents,
+      customer: "cus_late", customer_details: { email: "late@example.com", name: "Late" },
+      payment_intent: "pi_late_" + suffix, metadata: { orderId: lateOrder.id, tenantId: tenant.id },
+    };
+    const expiredId = "evt_late_expired_" + suffix;
+    const lateCompletedId = "evt_late_completed_" + suffix;
+    const lateRefundId = "evt_late_refund_" + suffix;
+    signedEventIds.push(expiredId, lateCompletedId, lateRefundId);
+    assert.equal((await deliver({ id: expiredId, type: "checkout.session.expired", data: { object: { ...lateSession, payment_status: "unpaid" } } })).status, 200);
+    assert.equal((await db.order.findUniqueOrThrow({ where: { id: lateOrder.id } })).status, "CANCELED");
+    assert.equal((await deliver({ id: lateCompletedId, type: "checkout.session.completed", data: { object: lateSession } })).status, 200);
+    // Direct and concurrent replays are idempotent and still grant nothing.
+    await Promise.all(Array.from({ length: 3 }, () => markOrderPaid({ orderId: lateOrder.id, email: "late@example.com", stripePaymentIntentId: "pi_late_" + suffix })));
+    const flagged = await db.order.findUniqueOrThrow({ where: { id: lateOrder.id }, include: { payments: true } });
+    assert.equal(flagged.status, "CANCELED");
+    assert.equal(flagged.reconciliation, "NEEDS_REVIEW");
+    assert.ok(flagged.reconciliationFlaggedAt);
+    assert.equal(flagged.customerId, null);
+    assert.equal(flagged.payments[0]?.status, "SUCCEEDED");
+    assert.equal(await db.purchaseLicense.count({ where: { orderId: lateOrder.id } }), 0);
+    assert.equal(await db.downloadEntitlement.count({ where: { purchaseLicense: { orderId: lateOrder.id } } }), 0);
+    assert.equal(await db.customer.count({ where: { tenantId: tenant.id, normalizedEmail: "late@example.com" } }), 0);
+    // Payment-failure events cannot un-flag it; refunds above capture are rejected.
+    await markOrderPaymentFailed({ orderId: lateOrder.id, stripePaymentIntentId: "pi_late_" + suffix });
+    assert.equal((await db.order.findUniqueOrThrow({ where: { id: lateOrder.id } })).reconciliation, "NEEDS_REVIEW");
+    await assert.rejects(recordRefund({ orderId: lateOrder.id, providerRefundId: "re_late_over_" + suffix, amountCents: lateOrder.totalCents + 1 }));
+    // The admin's Stripe refund arrives as a refund webhook and closes the review.
+    const refundEvent = { id: lateRefundId, type: "refund.created", data: { object: { id: "re_late_" + suffix, object: "refund", status: "succeeded", amount: lateOrder.totalCents, payment_intent: "pi_late_" + suffix, reason: "requested_by_customer" } } };
+    assert.equal((await deliver(refundEvent)).status, 200);
+    const resolved = await db.order.findUniqueOrThrow({ where: { id: lateOrder.id }, include: { payments: true } });
+    assert.equal(resolved.status, "CANCELED");
+    assert.equal(resolved.reconciliation, "RESOLVED");
+    assert.equal(resolved.payments[0]?.status, "REFUNDED");
+    assert.equal(await db.purchaseLicense.count({ where: { orderId: lateOrder.id } }), 0);
+
     const eventId = "evt_security_" + suffix;
     try {
       // A handler failure must roll back effects AND leave the event retryable.

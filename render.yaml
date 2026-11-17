@@ -11,7 +11,7 @@ services:
     numInstances: 1
     autoDeployTrigger: "off"
     healthCheckPath: /api/ready
-    buildCommand: npm ci --include=dev && npm run build && npm run db:deploy && BOOTSTRAP_UNSEALED_RECORDS=true npm run db:bootstrap-flagship
+    buildCommand: npm ci --include=dev && npm run build && npm run db:deploy && BOOTSTRAP_UNSEALED_RECORDS=true npm run db:bootstrap-flagship && npm run db:bootstrap-admin
     startCommand: node node_modules/next/dist/bin/next start --hostname 0.0.0.0 --port $PORT
     envVars:
       - key: NODE_VERSION

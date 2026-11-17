@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { CustomerEmailSignIn } from "@/components/auth/customer-email-sign-in";
+import { PasswordSignIn } from "@/components/auth/password-sign-in";
 import { safeInternalCallback } from "@/lib/internal-callback";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -46,8 +47,9 @@ export default async function SignInPage({ searchParams }: PageProps) {
         <p className="micro-label">Customer library</p>
         <h1>Return to your source material.</h1>
         <p>
-          Sign in with the email address used at checkout. No password is stored;
-          access uses a single-use email link.
+          Sign in with the email address used at checkout. Access uses a
+          single-use email link (requires the store&apos;s email delivery to be
+          configured).
         </p>
         <CustomerEmailSignIn callbackUrl={callbackUrl} />
       </section>
@@ -56,12 +58,19 @@ export default async function SignInPage({ searchParams }: PageProps) {
         <p className="micro-label">Artist administration</p>
         <h2>Catalog staff</h2>
         <p>
-          Tenant owners and catalog staff continue to use the configured GitHub
-          identity provider.
+          Sign in with your email and password. The owner&apos;s first password
+          is provisioned from the server setting
+          <code> STEMS_BOOTSTRAP_ADMIN_PASSWORD</code>; change it after signing
+          in at Account → Password.
         </p>
-        <a className="text-link" href="/api/auth/signin/github?callbackUrl=/admin">
-          Continue with GitHub
-        </a>
+        <PasswordSignIn callbackUrl={safeInternalCallback(params.callbackUrl) ?? "/admin"} />
+        {process.env.GITHUB_ID ? (
+          <p>
+            <a className="text-link" href="/api/auth/signin/github?callbackUrl=/admin">
+              Continue with GitHub
+            </a>
+          </p>
+        ) : null}
       </aside>
     </main>
   );

@@ -4,8 +4,8 @@ import { assertCheckoutPaymentMatches, type CheckoutPaymentEvidence } from "./pa
 import {
   assertRefundAmounts,
   assertRefundReplay,
-  isPaymentReplayOfSettledOrder,
-  isSettledOrderStatus,
+  paymentSuccessDisposition,
+  refundAllowedForOrder,
 } from "./payment-integrity";
 import { db } from "@/lib/db";
 
@@ -47,8 +47,37 @@ export async function markOrderPaid(input: {
     if (order.stripePaymentIntentId && order.stripePaymentIntentId !== input.stripePaymentIntentId) {
       throw new Error("Payment intent does not match order.");
     }
+    const disposition = paymentSuccessDisposition(order.status);
+    // Money arrived for an order that was already canceled (e.g. an expired
+    // checkout completed late). Never grant a license or downloads: record the
+    // captured payment and flag the order for an admin refund/review.
+    if (disposition === "reconcile") {
+      if (!order.reconciliation) {
+        await tx.order.update({
+          where: { id: order.id },
+          data: {
+            reconciliation: "NEEDS_REVIEW",
+            reconciliationFlaggedAt: new Date(),
+            reconciliationNote: "Payment received after the order was canceled. No access was granted; refund the buyer or resolve manually.",
+            buyerEmail: order.buyerEmail ?? input.email,
+            stripePaymentIntentId: order.stripePaymentIntentId ?? input.stripePaymentIntentId ?? undefined,
+          },
+        });
+        const payment = order.payments[0];
+        if (payment) {
+          await tx.payment.update({
+            where: { id: payment.id },
+            data: { status: "SUCCEEDED", providerPaymentId: input.stripePaymentIntentId ?? undefined },
+          });
+        }
+      }
+      return tx.order.findUniqueOrThrow({
+        where: { id: order.id },
+        include: { customer: true, items: { include: { purchaseLicense: true } }, payments: true },
+      });
+    }
     // Replays must not change the buyer, payment state, or revoked rights.
-    if (isPaymentReplayOfSettledOrder(order.status)) {
+    if (disposition === "replay") {
       if (order.buyerEmail && normalizeCustomerEmail(order.buyerEmail) !== normalizedEmail) {
         throw new Error("Paid order customer does not match.");
       }
@@ -226,9 +255,10 @@ export async function recordRefund(input: {
       throw new Error("Refund payment intent does not match order.");
     }
 
-    if (!isSettledOrderStatus(order.status)) {
+    if (!refundAllowedForOrder(order)) {
       throw new Error("Cannot refund an unpaid order.");
     }
+    const lateCanceledPayment = order.status === "CANCELED";
     const prior = await tx.refund.findUnique({ where: { providerRefundId: input.providerRefundId } });
     if (prior) {
       assertRefundReplay(prior, { paymentId: payment.id, amountCents: input.amountCents });
@@ -263,13 +293,23 @@ export async function recordRefund(input: {
       },
     });
 
-    await tx.order.update({
-      where: { id: order.id },
-      data: {
-        status: fullRefund ? "REFUNDED" : "PARTIALLY_REFUNDED",
-        refundedAt: fullRefund ? new Date() : null,
-      },
-    });
+    if (lateCanceledPayment) {
+      // The order stays CANCELED (it never granted access); a full refund closes the review.
+      await tx.order.update({
+        where: { id: order.id },
+        data: fullRefund
+          ? { refundedAt: new Date(), reconciliation: "RESOLVED", reconciliationResolvedAt: new Date(), reconciliationNote: "Late payment fully refunded." }
+          : { reconciliationNote: "Late payment partially refunded; review remaining balance." },
+      });
+    } else {
+      await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status: fullRefund ? "REFUNDED" : "PARTIALLY_REFUNDED",
+          refundedAt: fullRefund ? new Date() : null,
+        },
+      });
+    }
 
     if (fullRefund) {
       await tx.purchaseLicense.updateMany({
