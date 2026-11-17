@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { CommerceManager } from "@/components/admin/commerce-manager";
+import { PaymentReconciliationPanel } from "@/components/admin/payment-reconciliation-panel";
 import { requireTenantPermission } from "@/lib/access";
 import { hasPermission, type TenantRole } from "@/lib/permissions";
 
@@ -40,6 +41,8 @@ export default async function CommercePage({ searchParams }: PageProps) {
         canManage={canManage}
         returnedFromOnboarding={params.onboarding === "returned"}
       />
+
+      <PaymentReconciliationPanel canManage={canManage} />
     </main>
   );
 }

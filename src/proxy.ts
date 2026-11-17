@@ -20,5 +20,5 @@ export function proxy(request: NextRequest) {
 
 // NextAuth enforces its own CSRF tokens. Provider webhooks use signatures.
 export const config = {
-  matcher: ["/api/admin/:path*", "/api/platform-admin/:path*", "/api/team/:path*", "/api/library/:path*"],
+  matcher: ["/api/auth/password/:path*", "/api/admin/:path*", "/api/platform-admin/:path*", "/api/team/:path*", "/api/library/:path*"],
 };

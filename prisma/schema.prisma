@@ -95,6 +95,12 @@ enum OrderStatus {
   PARTIALLY_REFUNDED
 }
 
+enum PaymentReconciliation {
+  NEEDS_REVIEW
+  REFUND_REQUESTED
+  RESOLVED
+}
+
 enum PaymentProvider {
   STRIPE
 }
@@ -234,6 +240,11 @@ model User {
   memberships   TenantMembership[]
   customerProfiles Customer[]
   platformRole      PlatformRole       @default(USER)
+  /// scrypt hash for built-in email+password sign-in (null = no password).
+  passwordHash      String?
+  /// True while the password is the one provisioned from STEMS_BOOTSTRAP_ADMIN_PASSWORD.
+  passwordFromBootstrap Boolean        @default(false)
+  passwordUpdatedAt DateTime?
   platformAuditLogs PlatformAuditLog[] @relation("PlatformAuditActor")
   tenantInvitationsSent TenantInvitation[] @relation("TenantInvitationInviter")
   tenantInvitationsAccepted TenantInvitation[] @relation("TenantInvitationAccepter")
@@ -269,6 +280,15 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// Fixed-window counters for password sign-in attempts (per email and per IP).
+model AuthRateLimit {
+  key         String    @id
+  count       Int       @default(0)
+  windowStart DateTime  @default(now())
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
 }
 
 model VerificationToken {
@@ -741,6 +761,12 @@ model Order {
   failedAt                DateTime?
   canceledAt              DateTime?
   refundedAt              DateTime?
+  /// Set when money arrives for an order that was already CANCELED. Access is
+  /// never granted for such orders; an admin refunds or resolves them.
+  reconciliation          PaymentReconciliation?
+  reconciliationNote      String?     @db.Text
+  reconciliationFlaggedAt DateTime?
+  reconciliationResolvedAt DateTime?
   tenant                  Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customer                Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
   items                   OrderItem[]
@@ -752,6 +778,7 @@ model Order {
 
   @@index([tenantId, status, createdAt])
   @@index([customerId, createdAt])
+  @@index([tenantId, reconciliation])
 }
 
 model OrderItem {

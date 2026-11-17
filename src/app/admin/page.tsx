@@ -23,7 +23,8 @@ export default async function AdminPage() {
         {tenant.name}
       </h1>
       <p style={{ color: "var(--muted)", lineHeight: 1.6 }}>
-        Signed in as {session.user?.email ?? session.user?.name}. Role: {membership.role}.
+        Signed in as {session.user?.email ?? session.user?.name}. Role: {membership.role}.{" "}
+        <Link className="text-link" href="/account/password">Change password</Link>
       </p>
 
       {platformAccess ? (

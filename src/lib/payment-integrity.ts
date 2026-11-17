@@ -44,3 +44,28 @@ export function assertRefundReplay(
 export function isPaymentReplayOfSettledOrder(status: string) {
   return isSettledOrderStatus(status);
 }
+
+export type PaymentSuccessDisposition = "fulfill" | "replay" | "reconcile";
+
+/**
+ * Decide what a provider "payment succeeded" event may do to an order.
+ * - settled orders: idempotent replay, never re-grant rights;
+ * - CANCELED orders: money arrived after cancellation. Access must NOT be
+ *   granted; the payment is recorded and the order is flagged so an admin
+ *   refunds it (or auto-refund does when enabled).
+ * - otherwise: fulfill.
+ */
+export function paymentSuccessDisposition(status: string): PaymentSuccessDisposition {
+  if (isSettledOrderStatus(status)) return "replay";
+  if (status === "CANCELED") return "reconcile";
+  return "fulfill";
+}
+
+/** Refunds are accepted for settled orders and for flagged late payments on canceled orders. */
+export function refundAllowedForOrder(order: { status: string; reconciliation?: string | null }) {
+  return isSettledOrderStatus(order.status) || (order.status === "CANCELED" && Boolean(order.reconciliation));
+}
+
+export function autoRefundCanceledPaymentsEnabled(env: Record<string, string | undefined> = process.env) {
+  return env.STEMS_AUTO_REFUND_CANCELED_PAYMENTS === "true";
+}
